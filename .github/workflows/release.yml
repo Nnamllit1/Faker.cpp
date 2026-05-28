@@ -65,12 +65,12 @@ jobs:
             os: ubuntu-latest
             asset: faker-cpp-${{ github.event.inputs.version }}-linux-x64.zip
             benchmark: build/faker_benchmark
-            perf_tmp: .tmp-performance-linux-x64.json
+            perf_tmp: tmp-performance-linux-x64.json
           - name: windows
             os: windows-latest
             asset: faker-cpp-${{ github.event.inputs.version }}-windows-x64.zip
             benchmark: build/Release/faker_benchmark.exe
-            perf_tmp: .tmp-performance-windows-x64.json
+            perf_tmp: tmp-performance-windows-x64.json
 
     steps:
       - name: Checkout
@@ -130,7 +130,7 @@ jobs:
         run: |
           mkdir -p current-performance
           gh release download "${{ github.event.inputs.version }}" \
-            --pattern ".tmp-performance-*.json" \
+            --pattern "tmp-performance-*.json" \
             --dir current-performance
 
       - name: Download previous combined performance metric
@@ -160,7 +160,7 @@ jobs:
             --output-md performance.md \
             --release-body release-body.md \
             "${previous_args[@]}" \
-            current-performance/.tmp-performance-*.json
+            current-performance/tmp-performance-*.json
 
       - name: Replace temporary metrics with combined reports
         env:
@@ -169,7 +169,7 @@ jobs:
         run: |
           gh release upload "${{ github.event.inputs.version }}" performance.json performance.md --clobber
 
-          for asset in $(gh release view "${{ github.event.inputs.version }}" --json assets --jq '.assets[].name | select(startswith(".tmp-performance-"))'); do
+          for asset in $(gh release view "${{ github.event.inputs.version }}" --json assets --jq '.assets[].name | select(startswith("tmp-performance-"))'); do
             asset_id="$(gh api "repos/${GH_REPO}/releases/tags/${{ github.event.inputs.version }}" --jq ".assets[] | select(.name == \"${asset}\") | .id")"
             gh api --method DELETE "repos/${GH_REPO}/releases/assets/${asset_id}"
           done
