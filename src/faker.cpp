@@ -3,10 +3,9 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdio>
 #include <ctime>
-#include <iomanip>
 #include <random>
-#include <sstream>
 #include <string_view>
 
 namespace faker {
@@ -153,9 +152,22 @@ std::string slug(std::string value) {
 }
 
 std::string zero_padded(int value, int width) {
-    std::ostringstream out;
-    out << std::setw(width) << std::setfill('0') << value;
-    return out.str();
+    auto digits = std::to_string(value);
+    if (static_cast<int>(digits.size()) >= width) {
+        return digits;
+    }
+    return std::string(static_cast<std::size_t>(width - static_cast<int>(digits.size())), '0') + digits;
+}
+
+void append_hex_byte(std::string& out, int value) {
+    constexpr char kHex[] = "0123456789abcdef";
+    out += kHex[(value >> 4) & 0x0f];
+    out += kHex[value & 0x0f];
+}
+
+void append_hex_word(std::string& out, int value) {
+    append_hex_byte(out, (value >> 8) & 0xff);
+    append_hex_byte(out, value & 0xff);
 }
 
 std::string format_date(Faker::clock::time_point time) {
@@ -167,11 +179,14 @@ std::string format_date(Faker::clock::time_point time) {
     gmtime_r(&raw, &tm_value);
 #endif
 
-    std::ostringstream out;
-    out << (tm_value.tm_year + 1900) << '-'
-        << zero_padded(tm_value.tm_mon + 1, 2) << '-'
-        << zero_padded(tm_value.tm_mday, 2);
-    return out.str();
+    std::string out;
+    out.reserve(10);
+    out += std::to_string(tm_value.tm_year + 1900);
+    out += '-';
+    out += zero_padded(tm_value.tm_mon + 1, 2);
+    out += '-';
+    out += zero_padded(tm_value.tm_mday, 2);
+    return out;
 }
 
 std::uint64_t random_seed() {
@@ -233,21 +248,22 @@ double Faker::number_real(double min, double max) {
 
 std::string Faker::uuid_v4() {
     std::array<unsigned char, 16> bytes{};
+    std::uniform_int_distribution<int> byte_dist(0, 255);
     for (auto& byte : bytes) {
-        byte = static_cast<unsigned char>(number_int(0, 255));
+        byte = static_cast<unsigned char>(byte_dist(rng_));
     }
     bytes[6] = static_cast<unsigned char>((bytes[6] & 0x0fU) | 0x40U);
     bytes[8] = static_cast<unsigned char>((bytes[8] & 0x3fU) | 0x80U);
 
-    std::ostringstream out;
-    out << std::hex << std::setfill('0');
+    std::string out;
+    out.reserve(36);
     for (std::size_t i = 0; i < bytes.size(); ++i) {
-        out << std::setw(2) << static_cast<int>(bytes[i]);
+        append_hex_byte(out, bytes[i]);
         if (i == 3 || i == 5 || i == 7 || i == 9) {
-            out << '-';
+            out += '-';
         }
     }
-    return out.str();
+    return out;
 }
 
 std::string Faker::first_name() {
@@ -287,27 +303,29 @@ std::string Faker::ipv4() {
 }
 
 std::string Faker::ipv6() {
-    std::ostringstream out;
-    out << std::hex << std::setfill('0');
+    std::uniform_int_distribution<int> word_dist(0, 65535);
+    std::string out;
+    out.reserve(39);
     for (int i = 0; i < 8; ++i) {
         if (i != 0) {
-            out << ':';
+            out += ':';
         }
-        out << std::setw(4) << number_int(0, 65535);
+        append_hex_word(out, word_dist(rng_));
     }
-    return out.str();
+    return out;
 }
 
 std::string Faker::mac_address() {
-    std::ostringstream out;
-    out << std::hex << std::setfill('0');
+    std::uniform_int_distribution<int> byte_dist(0, 255);
+    std::string out;
+    out.reserve(17);
     for (int i = 0; i < 6; ++i) {
         if (i != 0) {
-            out << ':';
+            out += ':';
         }
-        out << std::setw(2) << number_int(0, 255);
+        append_hex_byte(out, byte_dist(rng_));
     }
-    return out.str();
+    return out;
 }
 
 std::string Faker::password(int length) {
@@ -316,10 +334,11 @@ std::string Faker::password(int length) {
     }
 
     constexpr std::string_view chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    std::uniform_int_distribution<std::size_t> char_dist(0, chars.size() - 1);
     std::string value;
     value.reserve(static_cast<std::size_t>(length));
     for (int i = 0; i < length; ++i) {
-        value += chars[static_cast<std::size_t>(number_int(0, static_cast<int>(chars.size() - 1)))];
+        value += chars[char_dist(rng_)];
     }
     return value;
 }
@@ -329,10 +348,15 @@ std::string Faker::user_agent() {
 }
 
 std::string Faker::phone_number() {
-    std::ostringstream out;
-    out << "+1-" << number_int(200, 999) << '-' << number_int(200, 999) << '-'
-        << zero_padded(number_int(0, 9999), 4);
-    return out.str();
+    std::string out;
+    out.reserve(15);
+    out += "+1-";
+    out += std::to_string(number_int(200, 999));
+    out += '-';
+    out += std::to_string(number_int(200, 999));
+    out += '-';
+    out += zero_padded(number_int(0, 9999), 4);
+    return out;
 }
 
 std::string Faker::street_address() {
@@ -470,17 +494,18 @@ std::string Faker::price(double min, double max) {
     if (min > max) {
         throw std::invalid_argument("faker::Faker::price min must be <= max");
     }
-    std::ostringstream out;
-    out << std::fixed << std::setprecision(2) << number_real(min, max);
-    return out.str();
+    char buffer[32]{};
+    std::snprintf(buffer, sizeof(buffer), "%.2f", number_real(min, max));
+    return std::string(buffer);
 }
 
 std::string Faker::hex_string(std::size_t length) {
     constexpr std::string_view chars = "0123456789abcdef";
+    std::uniform_int_distribution<int> hex_dist(0, 15);
     std::string value;
     value.reserve(length);
     for (std::size_t i = 0; i < length; ++i) {
-        value += chars[static_cast<std::size_t>(number_int(0, 15))];
+        value += chars[static_cast<std::size_t>(hex_dist(rng_))];
     }
     return value;
 }
