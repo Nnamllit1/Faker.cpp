@@ -47,10 +47,19 @@ constexpr std::array<std::string_view, 16> kCountries = {
     "United Kingdom", "Ireland", "Canada", "United States",
 };
 
-constexpr std::array<std::string_view, 18> kStates = {
+constexpr std::array<std::string_view, 69> kStates = {
     "California", "Texas", "Florida", "New York", "Pennsylvania", "Illinois",
-    "Ohio", "Georgia", "North Carolina", "Michigan", "Bavaria", "Saxony",
-    "Hesse", "Brandenburg", "Ontario", "Quebec", "Zurich", "Vienna",
+    "Ohio", "Georgia", "North Carolina", "Michigan", "Washington", "Colorado",
+    "Arizona", "Massachusetts", "Virginia", "Oregon", "Ontario", "Quebec",
+    "British Columbia", "Alberta", "New South Wales", "Victoria", "Queensland",
+    "Western Australia", "England", "Scotland", "Wales", "Northern Ireland",
+    "Bavaria", "Saxony", "Hesse", "Brandenburg", "Berlin", "Hamburg",
+    "North Rhine-Westphalia", "Baden-Wurttemberg", "Zurich", "Geneva", "Vaud",
+    "Bern", "Vienna", "Tyrol", "Upper Austria", "Ile-de-France", "Normandy",
+    "Brittany", "Catalonia", "Andalusia", "Madrid", "Lombardy", "Tuscany",
+    "Lazio", "Masovia", "Lesser Poland", "South Holland", "North Holland",
+    "Zealand", "Stockholm", "Skane", "Oslo", "Akershus", "Capital Region",
+    "Uusimaa", "Prague", "South Moravian", "Tokyo", "Osaka", "Seoul", "Busan",
 };
 
 constexpr std::array<std::string_view, 20> kStreetNames = {
