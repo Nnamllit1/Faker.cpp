@@ -53,8 +53,8 @@ jobs:
             --notes "Manual Faker.cpp release built from ${{ github.sha }}." \
             "${flags[@]}"
 
-  build:
-    name: Build ${{ matrix.name }}
+  package:
+    name: Package ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     needs: prepare
     strategy:
@@ -64,20 +64,16 @@ jobs:
           - name: linux
             os: ubuntu-latest
             asset: faker-cpp-${{ github.event.inputs.version }}-linux-x64.zip
-            benchmark: build/faker_benchmark
-            perf_tmp: tmp-performance-linux-x64.json
           - name: windows
             os: windows-latest
             asset: faker-cpp-${{ github.event.inputs.version }}-windows-x64.zip
-            benchmark: build/Release/faker_benchmark.exe
-            perf_tmp: tmp-performance-windows-x64.json
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFAKER_BUILD_TESTS=ON -DFAKER_BUILD_EXAMPLES=ON -DFAKER_BUILD_BENCHMARKS=ON
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFAKER_BUILD_TESTS=ON -DFAKER_BUILD_EXAMPLES=ON
 
       - name: Build
         run: cmake --build build --config Release
@@ -98,11 +94,45 @@ jobs:
       - name: Create archive
         run: cmake -E tar cfv "${{ matrix.asset }}" --format=zip package/Faker.cpp
 
+      - name: Upload release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "${{ github.event.inputs.version }}" "${{ matrix.asset }}" --clobber
+
+  performance:
+    name: Performance ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-latest
+            benchmark: build/faker_benchmark
+            perf_tmp: tmp-performance-linux-x64.json
+          - name: windows
+            os: windows-latest
+            benchmark: build/Release/faker_benchmark.exe
+            perf_tmp: tmp-performance-windows-x64.json
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure benchmark
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFAKER_BUILD_TESTS=OFF -DFAKER_BUILD_EXAMPLES=OFF -DFAKER_BUILD_BENCHMARKS=ON
+
+      - name: Build benchmark
+        run: cmake --build build --config Release --target faker_benchmark
+
       - name: Run performance benchmark
         shell: bash
         run: |
           "${{ matrix.benchmark }}" \
             --rows 1000000 \
+            --runs 10 \
             --version "${{ github.event.inputs.version }}" \
             --commit "${{ github.sha }}" \
             --os "${{ matrix.name }}-x64" \
@@ -113,12 +143,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release upload "${{ github.event.inputs.version }}" "${{ matrix.asset }}" "${{ matrix.perf_tmp }}" --clobber
+        run: gh release upload "${{ github.event.inputs.version }}" "${{ matrix.perf_tmp }}" --clobber
 
   publish:
     name: Publish release
     runs-on: ubuntu-latest
-    needs: build
+    needs: [package, performance]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

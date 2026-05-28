@@ -1,5 +1,6 @@
 #include <faker/faker.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -8,6 +9,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -15,6 +17,7 @@ constexpr long long kCallsPerRow = 48;
 
 struct Options {
     int rows = 1000000;
+    int runs = 1;
     std::string json_path = "performance.json";
     std::string markdown_path = "performance.md";
     std::string previous_path;
@@ -33,6 +36,7 @@ struct PreviousMetrics {
 void usage() {
     std::cout << "faker_benchmark [options]\n"
               << "  --rows N              Number of everything rows to generate, default 1000000\n"
+              << "  --runs N              Number of repeated benchmark runs, default 1\n"
               << "  --output-json PATH    JSON report path, default performance.json\n"
               << "  --output-md PATH      Markdown report path, default performance.md\n"
               << "  --previous PATH       Previous JSON report to compare against\n"
@@ -54,6 +58,8 @@ Options parse_args(int argc, char** argv) {
 
         if (arg == "--rows") {
             options.rows = std::stoi(need_value("--rows"));
+        } else if (arg == "--runs") {
+            options.runs = std::stoi(need_value("--runs"));
         } else if (arg == "--output-json") {
             options.json_path = need_value("--output-json");
         } else if (arg == "--output-md") {
@@ -76,6 +82,9 @@ Options parse_args(int argc, char** argv) {
 
     if (options.rows <= 0) {
         throw std::invalid_argument("--rows must be positive");
+    }
+    if (options.runs <= 0) {
+        throw std::invalid_argument("--runs must be positive");
     }
     return options;
 }
@@ -186,14 +195,20 @@ void add_string_size(volatile std::uint64_t& sink, const std::string& value) {
 
 struct Result {
     int rows = 0;
+    int runs = 0;
     long long total_calls = 0;
     double seconds = 0.0;
     double rows_per_second = 0.0;
     double calls_per_second = 0.0;
+    double best_seconds = 0.0;
+    double worst_seconds = 0.0;
+    double average_seconds = 0.0;
+    double median_seconds = 0.0;
     std::uint64_t checksum = 0;
+    std::vector<double> run_seconds;
 };
 
-Result run_benchmark(int rows) {
+Result run_benchmark_once(int rows) {
     faker::Faker fake(123456789);
     volatile std::uint64_t sink = 0;
 
@@ -252,11 +267,56 @@ Result run_benchmark(int rows) {
 
     Result result;
     result.rows = rows;
+    result.runs = 1;
     result.total_calls = static_cast<long long>(rows) * kCallsPerRow;
     result.seconds = std::chrono::duration<double>(end - start).count();
     result.rows_per_second = static_cast<double>(rows) / result.seconds;
     result.calls_per_second = static_cast<double>(result.total_calls) / result.seconds;
+    result.best_seconds = result.seconds;
+    result.worst_seconds = result.seconds;
+    result.average_seconds = result.seconds;
+    result.median_seconds = result.seconds;
     result.checksum = sink;
+    result.run_seconds.push_back(result.seconds);
+    return result;
+}
+
+Result run_benchmark(int rows, int runs) {
+    std::vector<Result> results;
+    results.reserve(static_cast<std::size_t>(runs));
+    for (int i = 0; i < runs; ++i) {
+        results.push_back(run_benchmark_once(rows));
+    }
+
+    std::vector<double> sorted_seconds;
+    sorted_seconds.reserve(results.size());
+    double total_seconds = 0.0;
+    std::uint64_t checksum = 0;
+    for (const auto& result : results) {
+        sorted_seconds.push_back(result.seconds);
+        total_seconds += result.seconds;
+        checksum += result.checksum;
+    }
+    std::sort(sorted_seconds.begin(), sorted_seconds.end());
+
+    const auto middle = sorted_seconds.size() / 2;
+    const auto median_seconds = sorted_seconds.size() % 2 == 0
+        ? (sorted_seconds[middle - 1] + sorted_seconds[middle]) / 2.0
+        : sorted_seconds[middle];
+
+    Result result;
+    result.rows = rows;
+    result.runs = runs;
+    result.total_calls = static_cast<long long>(rows) * kCallsPerRow;
+    result.seconds = median_seconds;
+    result.rows_per_second = static_cast<double>(rows) / result.seconds;
+    result.calls_per_second = static_cast<double>(result.total_calls) / result.seconds;
+    result.best_seconds = sorted_seconds.front();
+    result.worst_seconds = sorted_seconds.back();
+    result.average_seconds = total_seconds / static_cast<double>(results.size());
+    result.median_seconds = median_seconds;
+    result.checksum = checksum;
+    result.run_seconds = sorted_seconds;
     return result;
 }
 
@@ -274,9 +334,16 @@ void write_json(const Options& options, const Result& result, const PreviousMetr
     out << "  \"compiler\": \"" << compiler_name() << "\",\n";
     out << "  \"compiler_version\": \"" << compiler_version() << "\",\n";
     out << "  \"rows\": " << result.rows << ",\n";
+    out << "  \"runs\": " << result.runs << ",\n";
     out << "  \"calls_per_row\": " << kCallsPerRow << ",\n";
     out << "  \"total_calls\": " << result.total_calls << ",\n";
+    out << "  \"total_calls_all_runs\": " << (result.total_calls * static_cast<long long>(result.runs)) << ",\n";
+    out << "  \"metric\": \"median\",\n";
     out << "  \"seconds\": " << result.seconds << ",\n";
+    out << "  \"median_seconds\": " << result.median_seconds << ",\n";
+    out << "  \"best_seconds\": " << result.best_seconds << ",\n";
+    out << "  \"worst_seconds\": " << result.worst_seconds << ",\n";
+    out << "  \"average_seconds\": " << result.average_seconds << ",\n";
     out << "  \"rows_per_second\": " << result.rows_per_second << ",\n";
     out << "  \"calls_per_second\": " << result.calls_per_second << ",\n";
     out << "  \"checksum\": " << result.checksum << ",\n";
@@ -284,7 +351,15 @@ void write_json(const Options& options, const Result& result, const PreviousMetr
     out << "  \"seconds_delta_percent\": " << seconds_delta << ",\n";
     out << "  \"rows_per_second_delta_percent\": " << rows_delta << ",\n";
     out << "  \"calls_per_second_delta_percent\": " << calls_delta << ",\n";
-    out << "  \"comparison\": \"" << (previous.available ? escape_json(speed_text(rows_delta)) : "no previous metric") << "\"\n";
+    out << "  \"comparison\": \"" << (previous.available ? escape_json(speed_text(rows_delta)) : "no previous metric") << "\",\n";
+    out << "  \"run_seconds\": [";
+    for (std::size_t i = 0; i < result.run_seconds.size(); ++i) {
+        if (i != 0) {
+            out << ", ";
+        }
+        out << result.run_seconds[i];
+    }
+    out << "]\n";
     out << "}\n";
 }
 
@@ -299,9 +374,15 @@ void write_markdown(const Options& options, const Result& result, const Previous
     out << "- OS: `" << options.os << "`\n";
     out << "- Compiler: `" << compiler_name() << ' ' << compiler_version() << "`\n";
     out << "- Rows: `" << result.rows << "`\n";
+    out << "- Runs: `" << result.runs << "`\n";
     out << "- Calls per row: `" << kCallsPerRow << "`\n";
-    out << "- Total calls: `" << result.total_calls << "`\n";
-    out << "- Seconds: `" << std::fixed << std::setprecision(6) << result.seconds << "`\n";
+    out << "- Total calls per run: `" << result.total_calls << "`\n";
+    out << "- Total calls across runs: `" << (result.total_calls * static_cast<long long>(result.runs)) << "`\n";
+    out << "- Metric: `median`\n";
+    out << "- Median seconds: `" << std::fixed << std::setprecision(6) << result.median_seconds << "`\n";
+    out << "- Best seconds: `" << result.best_seconds << "`\n";
+    out << "- Worst seconds: `" << result.worst_seconds << "`\n";
+    out << "- Average seconds: `" << result.average_seconds << "`\n";
     out << "- Rows/second: `" << result.rows_per_second << "`\n";
     out << "- Calls/second: `" << result.calls_per_second << "`\n";
     out << "- Checksum: `" << result.checksum << "`\n";
@@ -319,15 +400,21 @@ int main(int argc, char** argv) {
     try {
         const auto options = parse_args(argc, argv);
         const auto previous = read_previous(options.previous_path);
-        const auto result = run_benchmark(options.rows);
+        const auto result = run_benchmark(options.rows, options.runs);
 
         write_json(options, result, previous);
         write_markdown(options, result, previous);
 
         std::cout << "rows=" << result.rows << '\n';
+        std::cout << "runs=" << result.runs << '\n';
         std::cout << "calls_per_row=" << kCallsPerRow << '\n';
         std::cout << "total_calls=" << result.total_calls << '\n';
+        std::cout << "total_calls_all_runs=" << (result.total_calls * static_cast<long long>(result.runs)) << '\n';
         std::cout << "seconds=" << result.seconds << '\n';
+        std::cout << "median_seconds=" << result.median_seconds << '\n';
+        std::cout << "best_seconds=" << result.best_seconds << '\n';
+        std::cout << "worst_seconds=" << result.worst_seconds << '\n';
+        std::cout << "average_seconds=" << result.average_seconds << '\n';
         std::cout << "rows_per_second=" << result.rows_per_second << '\n';
         std::cout << "calls_per_second=" << result.calls_per_second << '\n';
         std::cout << "checksum=" << result.checksum << '\n';
@@ -345,4 +432,3 @@ int main(int argc, char** argv) {
         return 1;
     }
 }
-

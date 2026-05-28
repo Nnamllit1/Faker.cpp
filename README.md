@@ -71,10 +71,10 @@ cmake --build build
 Run the full "everything" benchmark:
 
 ```sh
-./build/faker_benchmark --rows 1000000
+./build/faker_benchmark --rows 1000000 --runs 10
 ```
 
-The benchmark generates every flat public Faker API once per row, writes `performance.json` and `performance.md`, and prints throughput to stdout. Release builds attach one combined `performance.json` and one combined `performance.md` for all operating systems, then include the same performance table in the release body. If the previous release has a combined performance report, the new release compares against it.
+The benchmark generates every flat public Faker API once per row, writes `performance.json` and `performance.md`, and prints throughput to stdout. Release builds run performance in separate fresh Linux and Windows runner jobs, use 10 runs of 1,000,000 rows, compare the median result against the previous release, and attach one combined `performance.json` plus one combined `performance.md`.
 
 Benchmark numbers from virtual machines and GitHub-hosted runners are useful for comparing one release to another under similar conditions. They are not absolute hardware claims.
 

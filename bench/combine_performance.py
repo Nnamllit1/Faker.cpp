@@ -63,8 +63,13 @@ def combine_metrics(args):
         "version": args.version,
         "commit": args.commit,
         "rows": systems[0]["rows"],
+        "runs": systems[0].get("runs", 1),
+        "metric": systems[0].get("metric", "single"),
         "calls_per_row": systems[0]["calls_per_row"],
         "total_calls_per_system": systems[0]["total_calls"],
+        "total_calls_all_runs_per_system": systems[0].get(
+            "total_calls_all_runs", systems[0]["total_calls"] * systems[0].get("runs", 1)
+        ),
         "systems": systems,
     }
 
@@ -82,17 +87,21 @@ def write_markdown(path, report):
         f"- Version: `{report['version']}`",
         f"- Commit: `{report['commit']}`",
         f"- Rows per system: `{report['rows']}`",
+        f"- Runs per system: `{report['runs']}`",
+        f"- Comparison metric: `{report['metric']}`",
         f"- Calls per row: `{report['calls_per_row']}`",
-        f"- Total calls per system: `{report['total_calls_per_system']}`",
+        f"- Total calls per run: `{report['total_calls_per_system']}`",
+        f"- Total calls across runs per system: `{report['total_calls_all_runs_per_system']}`",
         "",
-        "| OS | Seconds | Rows/s | Calls/s | Previous |",
-        "| --- | ---: | ---: | ---: | --- |",
+        "| OS | Median seconds | Best seconds | Rows/s | Calls/s | Previous |",
+        "| --- | ---: | ---: | ---: | ---: | --- |",
     ]
 
     for system in report["systems"]:
         lines.append(
             f"| {system['os']} | "
             f"{system['seconds']:.6f} | "
+            f"{system.get('best_seconds', system['seconds']):.6f} | "
             f"{system['rows_per_second']:.2f} | "
             f"{system['calls_per_second']:.2f} | "
             f"{system['comparison']} |"
@@ -116,17 +125,18 @@ def write_release_body(path, report):
         "",
         "## Performance",
         "",
-        f"Benchmark workload: `{report['rows']}` rows per OS, "
-        f"`{report['calls_per_row']}` generated values per row.",
+        f"Benchmark workload: `{report['runs']}` runs per OS, `{report['rows']}` rows per run, "
+        f"`{report['calls_per_row']}` generated values per row. The table uses `{report['metric']}` results.",
         "",
-        "| OS | Seconds | Rows/s | Calls/s | Previous |",
-        "| --- | ---: | ---: | ---: | --- |",
+        "| OS | Median seconds | Best seconds | Rows/s | Calls/s | Previous |",
+        "| --- | ---: | ---: | ---: | ---: | --- |",
     ]
 
     for system in report["systems"]:
         lines.append(
             f"| {system['os']} | "
             f"{system['seconds']:.6f} | "
+            f"{system.get('best_seconds', system['seconds']):.6f} | "
             f"{system['rows_per_second']:.2f} | "
             f"{system['calls_per_second']:.2f} | "
             f"{system['comparison']} |"

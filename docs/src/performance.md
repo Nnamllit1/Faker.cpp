@@ -12,7 +12,7 @@ cmake --build build
 Run the standard benchmark:
 
 ```sh
-./build/faker_benchmark --rows 1000000
+./build/faker_benchmark --rows 1000000 --runs 10
 ```
 
 The standard benchmark generates every flat public Faker API once per row. For the current API this is 48 generated values per row.
@@ -22,6 +22,6 @@ The tool writes:
 - `performance.json`
 - `performance.md`
 
-Release workflows upload one combined `performance.json` and one combined `performance.md` for all operating systems, then include the same performance table in the release body. If the previous release has a combined performance report, the new report includes faster/slower percentages for runtime and throughput.
+Release workflows run performance in separate fresh Linux and Windows runner jobs, use 10 runs of 1,000,000 rows, compare the median result against the previous release, and upload one combined `performance.json` plus one combined `performance.md`.
 
 Virtual machines and GitHub-hosted runners are useful for release-to-release comparisons, but the numbers should not be treated as absolute hardware limits.
