@@ -139,7 +139,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           mkdir -p previous-performance
-          previous_tag="$(gh release list --exclude-drafts --limit 20 | awk -v current="${{ github.event.inputs.version }}" '$1 != current { print $1; exit }')"
+          previous_tag="$(gh release list --exclude-drafts --limit 20 --json tagName --jq '.[].tagName' | awk -v current="${{ github.event.inputs.version }}" '$0 != current { print; exit }')"
           if [ -n "$previous_tag" ]; then
             gh release download "$previous_tag" \
               --pattern "performance.json" \
