@@ -1,7 +1,7 @@
 #include "faker/faker.hpp"
 
-#include <algorithm>
 #include <array>
+#include <charconv>
 #include <cctype>
 #include <cstdio>
 #include <ctime>
@@ -11,21 +11,34 @@
 namespace faker {
 namespace {
 
-constexpr std::array<std::string_view, 40> kFirstNames = {
+constexpr std::array<std::string_view, 80> kFirstNames = {
     "Alex", "Avery", "Bailey", "Blair", "Cameron", "Casey", "Charlie", "Dakota",
     "Drew", "Elliot", "Emerson", "Finley", "Harper", "Hayden", "Jamie", "Jordan",
     "Kai", "Kendall", "Logan", "Morgan", "Parker", "Quinn", "Reese", "Riley",
     "River", "Rowan", "Sage", "Sam", "Sawyer", "Skyler", "Taylor", "Terry",
     "Toby", "Robin", "Noah", "Maya", "Iris", "Milo", "Nora", "Theo",
+    "Ada", "Amelia", "Aria", "Atlas", "Beau", "Briar", "Callum", "Clara",
+    "Cora", "Dylan", "Eden", "Elena", "Felix", "Freya", "Gavin", "Grace",
+    "Hazel", "Henry", "Isla", "Jasper", "Juniper", "Lena", "Leo", "Luca",
+    "Luna", "Maeve", "Miles", "Naomi", "Owen", "Paige", "Phoebe", "Remy",
+    "Silas", "Sofia", "Stella", "Vera", "Wren", "Zoe", "Ezra", "Ivy",
 };
 
-constexpr std::array<std::string_view, 40> kLastNames = {
+constexpr std::array<std::string_view, 80> kLastNames = {
     "Anderson", "Baker", "Bennett", "Brooks", "Carter", "Clark", "Coleman", "Cooper",
     "Davis", "Diaz", "Edwards", "Evans", "Fisher", "Foster", "Garcia", "Gray",
     "Green", "Hall", "Harris", "Hayes", "Hill", "Howard", "Hughes", "Jackson",
     "James", "Johnson", "Kelly", "King", "Lewis", "Martin", "Miller", "Mitchell",
     "Moore", "Nelson", "Parker", "Perez", "Reed", "Roberts", "Smith", "Turner",
+    "Adams", "Allen", "Bailey", "Bell", "Bryant", "Campbell", "Collins", "Cook",
+    "Cox", "Cruz", "Flores", "Gomez", "Gonzalez", "Griffin", "Gutierrez", "Jenkins",
+    "Jones", "Lee", "Long", "Lopez", "Martinez", "Morris", "Murphy", "Myers",
+    "Nguyen", "Phillips", "Price", "Ramirez", "Rivera", "Ross", "Russell", "Sanchez",
+    "Sanders", "Scott", "Stewart", "Thompson", "Walker", "Ward", "Watson", "Young",
 };
+
+static_assert(kFirstNames.size() == 80, "first name data must have exactly 80 entries");
+static_assert(kLastNames.size() == 80, "last name data must have exactly 80 entries");
 
 constexpr std::array<std::string_view, 28> kWords = {
     "alpha", "brisk", "clear", "delta", "ember", "field", "globe", "harbor",
@@ -127,37 +140,55 @@ constexpr std::array<std::string_view, 10> kMimeTypes = {
 };
 
 template <std::size_t N>
-std::string pick(std::mt19937_64& rng, const std::array<std::string_view, N>& values) {
+std::string_view pick_view(std::mt19937_64& rng, const std::array<std::string_view, N>& values) {
     std::uniform_int_distribution<std::size_t> dist(0, values.size() - 1);
-    return std::string(values[dist(rng)]);
+    return values[dist(rng)];
 }
 
-std::string lower_ascii(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-    return value;
+template <std::size_t N>
+std::string pick(std::mt19937_64& rng, const std::array<std::string_view, N>& values) {
+    return std::string(pick_view(rng, values));
 }
 
-std::string remove_spaces(std::string value) {
-    value.erase(std::remove_if(value.begin(), value.end(), [](unsigned char ch) {
-        return std::isspace(ch) != 0;
-    }), value.end());
-    return value;
+int random_int(std::mt19937_64& rng, int min, int max) {
+    std::uniform_int_distribution<int> dist(min, max);
+    return dist(rng);
 }
 
-std::string slug(std::string value) {
-    value = lower_ascii(value);
-    std::replace(value.begin(), value.end(), ' ', '-');
-    return value;
+void append_int(std::string& out, int value) {
+    char buffer[32]{};
+    const auto result = std::to_chars(buffer, buffer + sizeof(buffer), value);
+    out.append(buffer, result.ptr);
 }
 
-std::string zero_padded(int value, int width) {
-    auto digits = std::to_string(value);
-    if (static_cast<int>(digits.size()) >= width) {
-        return digits;
+void append_zero_padded(std::string& out, int value, int width) {
+    char buffer[32]{};
+    const auto result = std::to_chars(buffer, buffer + sizeof(buffer), value);
+    const auto digits = static_cast<int>(result.ptr - buffer);
+    if (digits < width) {
+        out.append(static_cast<std::size_t>(width - digits), '0');
     }
-    return std::string(static_cast<std::size_t>(width - static_cast<int>(digits.size())), '0') + digits;
+    out.append(buffer, result.ptr);
+}
+
+void append_lower_ascii(std::string& out, std::string_view value) {
+    for (const auto ch : value) {
+        out += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    }
+}
+
+void append_compact_lower_ascii(std::string& out, std::string_view value) {
+    for (const auto ch : value) {
+        if (std::isspace(static_cast<unsigned char>(ch)) == 0) {
+            out += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        }
+    }
+}
+
+void append_slug(std::string& out, std::string_view value) {
+    for (const auto ch : value) {
+        out += ch == ' ' ? '-' : static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    }
 }
 
 void append_hex_byte(std::string& out, int value) {
@@ -171,6 +202,37 @@ void append_hex_word(std::string& out, int value) {
     append_hex_byte(out, value & 0xff);
 }
 
+void append_hex_chars(std::string& out, std::mt19937_64& rng, std::size_t length) {
+    constexpr std::string_view chars = "0123456789abcdef";
+    std::uniform_int_distribution<int> hex_dist(0, 15);
+    for (std::size_t i = 0; i < length; ++i) {
+        out += chars[static_cast<std::size_t>(hex_dist(rng))];
+    }
+}
+
+void append_domain_name(std::string& out, std::mt19937_64& rng) {
+    append_compact_lower_ascii(out, pick_view(rng, kCompanyPrefixes));
+    out += '-';
+    append_compact_lower_ascii(out, pick_view(rng, kCompanyNouns));
+    out += '.';
+    out += pick_view(rng, kTlds);
+}
+
+void append_username(std::string& out, std::mt19937_64& rng) {
+    append_lower_ascii(out, pick_view(rng, kFirstNames));
+    out += '.';
+    append_lower_ascii(out, pick_view(rng, kLastNames));
+    append_int(out, random_int(rng, 10, 9999));
+}
+
+void append_file_name(std::string& out, std::mt19937_64& rng) {
+    append_slug(out, pick_view(rng, kWords));
+    out += '-';
+    append_int(out, random_int(rng, 1, 9999));
+    out += '.';
+    out += pick_view(rng, kFileExtensions);
+}
+
 std::string format_date(Faker::clock::time_point time) {
     const auto raw = Faker::clock::to_time_t(time);
     std::tm tm_value{};
@@ -182,11 +244,11 @@ std::string format_date(Faker::clock::time_point time) {
 
     std::string out;
     out.reserve(10);
-    out += std::to_string(tm_value.tm_year + 1900);
+    append_int(out, tm_value.tm_year + 1900);
     out += '-';
-    out += zero_padded(tm_value.tm_mon + 1, 2);
+    append_zero_padded(out, tm_value.tm_mon + 1, 2);
     out += '-';
-    out += zero_padded(tm_value.tm_mday, 2);
+    append_zero_padded(out, tm_value.tm_mday, 2);
     return out;
 }
 
@@ -235,8 +297,7 @@ int Faker::number_int(int min, int max) {
     if (min > max) {
         throw std::invalid_argument("faker::Faker::number_int min must be <= max");
     }
-    std::uniform_int_distribution<int> dist(min, max);
-    return dist(rng_);
+    return random_int(rng_, min, max);
 }
 
 double Faker::number_real(double min, double max) {
@@ -276,31 +337,58 @@ std::string Faker::last_name() {
 }
 
 std::string Faker::full_name() {
-    return first_name() + " " + last_name();
+    const auto first = pick_view(rng_, kFirstNames);
+    const auto last = pick_view(rng_, kLastNames);
+    std::string out;
+    out.reserve(first.size() + 1 + last.size());
+    out += first;
+    out += ' ';
+    out += last;
+    return out;
 }
 
 std::string Faker::username() {
-    return lower_ascii(first_name()) + "." + lower_ascii(last_name()) + std::to_string(number_int(10, 9999));
+    std::string out;
+    out.reserve(32);
+    append_username(out, rng_);
+    return out;
 }
 
 std::string Faker::email() {
-    return username() + "@" + domain_name();
+    std::string out;
+    out.reserve(64);
+    append_username(out, rng_);
+    out += '@';
+    append_domain_name(out, rng_);
+    return out;
 }
 
 std::string Faker::domain_name() {
-    return remove_spaces(lower_ascii(pick(rng_, kCompanyPrefixes))) + "-" +
-        remove_spaces(lower_ascii(pick(rng_, kCompanyNouns))) + "." + pick(rng_, kTlds);
+    std::string out;
+    out.reserve(32);
+    append_domain_name(out, rng_);
+    return out;
 }
 
 std::string Faker::url() {
-    return "https://www." + domain_name();
+    std::string out;
+    out.reserve(48);
+    out += "https://www.";
+    append_domain_name(out, rng_);
+    return out;
 }
 
 std::string Faker::ipv4() {
-    return std::to_string(number_int(1, 223)) + "." +
-        std::to_string(number_int(0, 255)) + "." +
-        std::to_string(number_int(0, 255)) + "." +
-        std::to_string(number_int(1, 254));
+    std::string out;
+    out.reserve(15);
+    append_int(out, random_int(rng_, 1, 223));
+    out += '.';
+    append_int(out, random_int(rng_, 0, 255));
+    out += '.';
+    append_int(out, random_int(rng_, 0, 255));
+    out += '.';
+    append_int(out, random_int(rng_, 1, 254));
+    return out;
 }
 
 std::string Faker::ipv6() {
@@ -352,16 +440,23 @@ std::string Faker::phone_number() {
     std::string out;
     out.reserve(15);
     out += "+1-";
-    out += std::to_string(number_int(200, 999));
+    append_int(out, random_int(rng_, 200, 999));
     out += '-';
-    out += std::to_string(number_int(200, 999));
+    append_int(out, random_int(rng_, 200, 999));
     out += '-';
-    out += zero_padded(number_int(0, 9999), 4);
+    append_zero_padded(out, random_int(rng_, 0, 9999), 4);
     return out;
 }
 
 std::string Faker::street_address() {
-    return std::to_string(number_int(1, 9999)) + " " + pick(rng_, kStreetNames) + " Street";
+    const auto street = pick_view(rng_, kStreetNames);
+    std::string out;
+    out.reserve(6 + street.size() + 7);
+    append_int(out, random_int(rng_, 1, 9999));
+    out += ' ';
+    out += street;
+    out += " Street";
+    return out;
 }
 
 std::string Faker::city() {
@@ -377,7 +472,10 @@ std::string Faker::state() {
 }
 
 std::string Faker::zip_code() {
-    return zero_padded(number_int(0, 99999), 5);
+    std::string out;
+    out.reserve(5);
+    append_zero_padded(out, random_int(rng_, 0, 99999), 5);
+    return out;
 }
 
 double Faker::latitude() {
@@ -389,7 +487,14 @@ double Faker::longitude() {
 }
 
 std::string Faker::company_name() {
-    return pick(rng_, kCompanyPrefixes) + " " + pick(rng_, kCompanyNouns);
+    const auto prefix = pick_view(rng_, kCompanyPrefixes);
+    const auto noun = pick_view(rng_, kCompanyNouns);
+    std::string out;
+    out.reserve(prefix.size() + 1 + noun.size());
+    out += prefix;
+    out += ' ';
+    out += noun;
+    return out;
 }
 
 std::string Faker::job_title() {
@@ -406,13 +511,19 @@ std::string Faker::sentence(int words) {
     }
 
     std::string value;
+    value.reserve(static_cast<std::size_t>(words * 8 + 1));
     for (int i = 0; i < words; ++i) {
         if (i != 0) {
             value += ' ';
         }
-        value += word();
+        const auto picked = pick_view(rng_, kWords);
+        if (i == 0 && !picked.empty()) {
+            value += static_cast<char>(std::toupper(static_cast<unsigned char>(picked.front())));
+            value.append(picked.data() + 1, picked.size() - 1);
+        } else {
+            value += picked;
+        }
     }
-    value[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(value[0])));
     value += '.';
     return value;
 }
@@ -423,11 +534,25 @@ std::string Faker::paragraph(int sentences) {
     }
 
     std::string value;
+    value.reserve(static_cast<std::size_t>(sentences * 80));
     for (int i = 0; i < sentences; ++i) {
         if (i != 0) {
             value += ' ';
         }
-        value += sentence(number_int(6, 14));
+        const auto words = random_int(rng_, 6, 14);
+        for (int j = 0; j < words; ++j) {
+            if (j != 0) {
+                value += ' ';
+            }
+            const auto picked = pick_view(rng_, kWords);
+            if (j == 0 && !picked.empty()) {
+                value += static_cast<char>(std::toupper(static_cast<unsigned char>(picked.front())));
+                value.append(picked.data() + 1, picked.size() - 1);
+            } else {
+                value += picked;
+            }
+        }
+        value += '.';
     }
     return value;
 }
@@ -466,7 +591,7 @@ std::string Faker::recent_date(int days_back) {
 std::string Faker::credit_card_number() {
     std::string digits = "4";
     while (digits.size() < 15) {
-        digits += static_cast<char>('0' + number_int(0, 9));
+        digits += static_cast<char>('0' + random_int(rng_, 0, 9));
     }
     digits += static_cast<char>('0' + luhn_check_digit(digits));
     return digits;
@@ -477,14 +602,25 @@ std::string Faker::currency_code() {
 }
 
 std::string Faker::iban() {
-    return "DE" + zero_padded(number_int(0, 99), 2) +
-        zero_padded(number_int(10000000, 99999999), 8) +
-        zero_padded(number_int(100000000, 999999999), 9) +
-        std::to_string(number_int(0, 9));
+    std::string out;
+    out.reserve(22);
+    out += "DE";
+    append_zero_padded(out, random_int(rng_, 0, 99), 2);
+    append_zero_padded(out, random_int(rng_, 10000000, 99999999), 8);
+    append_zero_padded(out, random_int(rng_, 100000000, 999999999), 9);
+    append_int(out, random_int(rng_, 0, 9));
+    return out;
 }
 
 std::string Faker::product_name() {
-    return pick(rng_, kProductAdjectives) + " " + pick(rng_, kProductNouns);
+    const auto adjective = pick_view(rng_, kProductAdjectives);
+    const auto noun = pick_view(rng_, kProductNouns);
+    std::string out;
+    out.reserve(adjective.size() + 1 + noun.size());
+    out += adjective;
+    out += ' ';
+    out += noun;
+    return out;
 }
 
 std::string Faker::product_category() {
@@ -501,13 +637,9 @@ std::string Faker::price(double min, double max) {
 }
 
 std::string Faker::hex_string(std::size_t length) {
-    constexpr std::string_view chars = "0123456789abcdef";
-    std::uniform_int_distribution<int> hex_dist(0, 15);
     std::string value;
     value.reserve(length);
-    for (std::size_t i = 0; i < length; ++i) {
-        value += chars[static_cast<std::size_t>(hex_dist(rng_))];
-    }
+    append_hex_chars(value, rng_, length);
     return value;
 }
 
@@ -524,11 +656,22 @@ std::string Faker::sha256() {
 }
 
 std::string Faker::file_name() {
-    return slug(word()) + "-" + std::to_string(number_int(1, 9999)) + "." + pick(rng_, kFileExtensions);
+    std::string out;
+    out.reserve(20);
+    append_file_name(out, rng_);
+    return out;
 }
 
 std::string Faker::file_path() {
-    return "/" + slug(word()) + "/" + slug(word()) + "/" + file_name();
+    std::string out;
+    out.reserve(48);
+    out += '/';
+    append_slug(out, pick_view(rng_, kWords));
+    out += '/';
+    append_slug(out, pick_view(rng_, kWords));
+    out += '/';
+    append_file_name(out, rng_);
+    return out;
 }
 
 std::string Faker::mime_type() {
@@ -536,19 +679,35 @@ std::string Faker::mime_type() {
 }
 
 std::string Faker::semver() {
-    return std::to_string(number_int(0, 9)) + "." +
-        std::to_string(number_int(0, 20)) + "." +
-        std::to_string(number_int(0, 99));
+    std::string out;
+    out.reserve(8);
+    append_int(out, random_int(rng_, 0, 9));
+    out += '.';
+    append_int(out, random_int(rng_, 0, 20));
+    out += '.';
+    append_int(out, random_int(rng_, 0, 99));
+    return out;
 }
 
 std::string Faker::hex_color() {
-    return "#" + hex_string(6);
+    std::string out;
+    out.reserve(7);
+    out += '#';
+    append_hex_chars(out, rng_, 6);
+    return out;
 }
 
 std::string Faker::rgb_color() {
-    return "rgb(" + std::to_string(number_int(0, 255)) + ", " +
-        std::to_string(number_int(0, 255)) + ", " +
-        std::to_string(number_int(0, 255)) + ")";
+    std::string out;
+    out.reserve(18);
+    out += "rgb(";
+    append_int(out, random_int(rng_, 0, 255));
+    out += ", ";
+    append_int(out, random_int(rng_, 0, 255));
+    out += ", ";
+    append_int(out, random_int(rng_, 0, 255));
+    out += ')';
+    return out;
 }
 
 Faker::Person Faker::person() { return Person(*this); }
