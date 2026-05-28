@@ -1,0 +1,11 @@
+[book]
+title = "Faker.cpp"
+authors = ["Nnamllit1"]
+language = "en"
+multilingual = false
+src = "src"
+
+[output.html]
+git-repository-url = "https://github.com/Nnamllit1/Faker.cpp"
+edit-url-template = "https://github.com/Nnamllit1/Faker.cpp/edit/main/docs/{path}"
+

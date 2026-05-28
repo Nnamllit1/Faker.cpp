@@ -1,0 +1,78 @@
+# Faker.cpp
+
+Faker.cpp is a small C++17 fake data generation library inspired by faker-style libraries in JavaScript. It targets Linux and Windows first. macOS should be portable in theory, but it is not part of the tested CI matrix yet.
+
+The library is intentionally simple: include the header, compile the source file, and generate data from a local `faker::Faker` instance.
+
+```cpp
+#include <faker/faker.hpp>
+
+#include <iostream>
+
+int main() {
+    faker::Faker fake(42);
+
+    std::cout << fake.full_name() << '\n';
+    std::cout << fake.email() << '\n';
+    std::cout << fake.uuid_v4() << '\n';
+}
+```
+
+## Use With CMake
+
+```cmake
+add_subdirectory(path/to/faker.cpp)
+target_link_libraries(your_app PRIVATE faker::faker)
+```
+
+Or install it and use:
+
+```cmake
+find_package(FakerCpp CONFIG REQUIRED)
+target_link_libraries(your_app PRIVATE faker::faker)
+```
+
+## ImGui-Style Vendoring
+
+Copy these two files into your project:
+
+- `include/faker/faker.hpp`
+- `src/faker.cpp`
+
+Then compile `src/faker.cpp` with your application and make `include/` available on the include path.
+
+For small tools that keep the repository layout intact, you can also build one translation unit:
+
+```cpp
+#define FAKER_CPP_IMPLEMENTATION
+#include <faker/faker.hpp>
+```
+
+Use either this macro or compile `src/faker.cpp`, not both.
+
+## Build
+
+```sh
+cmake -S . -B build -DFAKER_BUILD_TESTS=ON -DFAKER_BUILD_EXAMPLES=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+## API Snapshot
+
+`faker::Faker` supports:
+
+- person: `first_name`, `last_name`, `full_name`
+- internet: `username`, `email`, `domain_name`, `url`, `ipv4`
+- location: `street_address`, `city`, `country`
+- business: `company_name`, `job_title`
+- text: `word`, `sentence`, `paragraph`
+- primitives: `boolean`, `number_int`, `number_real`, `uuid_v4`
+- dates: `past_date`, `future_date`, `recent_date`, `date_between`
+- helpers: `choice`
+
+There are also namespace-level convenience functions such as `faker::email()` and `faker::uuid_v4()` backed by a thread-local default generator.
+
+## License
+
+No license is included yet. This private repository is proprietary by default until a license is added.
