@@ -41,6 +41,7 @@ jobs:
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           flags=(--draft)
           if [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
@@ -96,6 +97,7 @@ jobs:
       - name: Upload release asset
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: gh release upload "${{ github.event.inputs.version }}" "${{ matrix.asset }}" --clobber
 
   publish:
@@ -106,4 +108,5 @@ jobs:
       - name: Publish draft release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: gh release edit "${{ github.event.inputs.version }}" --draft=false
