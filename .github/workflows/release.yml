@@ -65,14 +65,12 @@ jobs:
             os: ubuntu-latest
             asset: faker-cpp-${{ github.event.inputs.version }}-linux-x64.zip
             benchmark: build/faker_benchmark
-            perf_json: performance-linux-x64.json
-            perf_md: performance-linux-x64.md
+            perf_tmp: .tmp-performance-linux-x64.json
           - name: windows
             os: windows-latest
             asset: faker-cpp-${{ github.event.inputs.version }}-windows-x64.zip
             benchmark: build/Release/faker_benchmark.exe
-            perf_json: performance-windows-x64.json
-            perf_md: performance-windows-x64.md
+            perf_tmp: .tmp-performance-windows-x64.json
 
     steps:
       - name: Checkout
@@ -100,29 +98,6 @@ jobs:
       - name: Create archive
         run: cmake -E tar cfv "${{ matrix.asset }}" --format=zip package/Faker.cpp
 
-      - name: Find previous performance metric
-        id: previous
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          mkdir -p previous-performance
-          previous_tag="$(gh release list --exclude-drafts --limit 20 | awk -v current="${{ github.event.inputs.version }}" '$1 != current { print $1; exit }')"
-          if [ -n "$previous_tag" ]; then
-            gh release download "$previous_tag" \
-              --pattern "${{ matrix.perf_json }}" \
-              --dir previous-performance || true
-          fi
-
-          if [ -f "previous-performance/${{ matrix.perf_json }}" ]; then
-            echo "args=--previous previous-performance/${{ matrix.perf_json }}" >> "$GITHUB_OUTPUT"
-            echo "Previous performance metric: $previous_tag/${{ matrix.perf_json }}"
-          else
-            echo "args=" >> "$GITHUB_OUTPUT"
-            echo "No previous performance metric found."
-          fi
-
       - name: Run performance benchmark
         shell: bash
         run: |
@@ -131,23 +106,76 @@ jobs:
             --version "${{ github.event.inputs.version }}" \
             --commit "${{ github.sha }}" \
             --os "${{ matrix.name }}-x64" \
-            --output-json "${{ matrix.perf_json }}" \
-            --output-md "${{ matrix.perf_md }}" \
-            ${{ steps.previous.outputs.args }}
+            --output-json "${{ matrix.perf_tmp }}" \
+            --output-md performance-local.md
 
       - name: Upload release asset
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release upload "${{ github.event.inputs.version }}" "${{ matrix.asset }}" "${{ matrix.perf_json }}" "${{ matrix.perf_md }}" --clobber
+        run: gh release upload "${{ github.event.inputs.version }}" "${{ matrix.asset }}" "${{ matrix.perf_tmp }}" --clobber
 
   publish:
     name: Publish release
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download current performance metrics
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p current-performance
+          gh release download "${{ github.event.inputs.version }}" \
+            --pattern ".tmp-performance-*.json" \
+            --dir current-performance
+
+      - name: Download previous combined performance metric
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p previous-performance
+          previous_tag="$(gh release list --exclude-drafts --limit 20 | awk -v current="${{ github.event.inputs.version }}" '$1 != current { print $1; exit }')"
+          if [ -n "$previous_tag" ]; then
+            gh release download "$previous_tag" \
+              --pattern "performance.json" \
+              --dir previous-performance || true
+          fi
+
+      - name: Combine performance report
+        run: |
+          previous_args=()
+          if [ -f previous-performance/performance.json ]; then
+            previous_args=(--previous previous-performance/performance.json)
+          fi
+
+          python3 bench/combine_performance.py \
+            --version "${{ github.event.inputs.version }}" \
+            --commit "${{ github.sha }}" \
+            --output-json performance.json \
+            --output-md performance.md \
+            --release-body release-body.md \
+            "${previous_args[@]}" \
+            current-performance/.tmp-performance-*.json
+
+      - name: Replace temporary metrics with combined reports
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "${{ github.event.inputs.version }}" performance.json performance.md --clobber
+
+          for asset in $(gh release view "${{ github.event.inputs.version }}" --json assets --jq '.assets[].name | select(startswith(".tmp-performance-"))'); do
+            asset_id="$(gh api "repos/${GH_REPO}/releases/tags/${{ github.event.inputs.version }}" --jq ".assets[] | select(.name == \"${asset}\") | .id")"
+            gh api --method DELETE "repos/${GH_REPO}/releases/assets/${asset_id}"
+          done
+
       - name: Publish draft release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release edit "${{ github.event.inputs.version }}" --draft=false
+        run: gh release edit "${{ github.event.inputs.version }}" --notes-file release-body.md --draft=false

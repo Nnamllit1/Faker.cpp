@@ -22,6 +22,6 @@ The tool writes:
 - `performance.json`
 - `performance.md`
 
-Release workflows upload per-platform reports directly as release assets. If a previous release has a matching performance JSON asset, the new report includes faster/slower percentages for runtime and throughput.
+Release workflows upload one combined `performance.json` and one combined `performance.md` for all operating systems, then include the same performance table in the release body. If the previous release has a combined performance report, the new report includes faster/slower percentages for runtime and throughput.
 
 Virtual machines and GitHub-hosted runners are useful for release-to-release comparisons, but the numbers should not be treated as absolute hardware limits.
