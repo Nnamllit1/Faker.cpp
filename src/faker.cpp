@@ -86,8 +86,9 @@ constexpr std::array<std::string_view, 16> kJobTitles = {
     "Operations Manager", "Frontend Engineer", "Backend Engineer", "Architect",
 };
 
-constexpr std::array<std::string_view, 10> kTlds = {
+constexpr std::array<std::string_view, 16> kTlds = {
     "com", "net", "org", "dev", "io", "app", "cloud", "tech", "example", "test",
+    "de", "it", "gov", "tk", "ai", "tv",
 };
 
 constexpr std::array<std::string_view, 6> kUserAgents = {
