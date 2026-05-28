@@ -12,6 +12,7 @@ int main() {
     std::cout << fake.email() << "\n";
     std::cout << fake.street_address() << "\n";
     std::cout << fake.uuid_v4() << "\n";
+    std::cout << fake.crypto().sha256() << "\n";
 }
 ```
 
@@ -22,3 +23,11 @@ faker::seed(123);
 auto email = faker::email();
 ```
 
+The library supports both flat methods and lightweight category aliases:
+
+```cpp
+faker::Faker fake(123);
+
+auto flat = fake.email();
+auto categorized = fake.internet().email();
+```

@@ -12,4 +12,4 @@ The first release focuses on common data:
 - companies and job titles
 - lorem-like words, sentences, and paragraphs
 - dates, numbers, booleans, UUIDs, and selection helpers
-
+- commerce, finance, colors, file names, semantic versions, and fake hash-shaped strings

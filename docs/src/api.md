@@ -26,6 +26,10 @@ fake.email();
 fake.domain_name();
 fake.url();
 fake.ipv4();
+fake.ipv6();
+fake.mac_address();
+fake.password();
+fake.user_agent();
 ```
 
 Location and business:
@@ -35,6 +39,10 @@ fake.phone_number();
 fake.street_address();
 fake.city();
 fake.country();
+fake.state();
+fake.zip_code();
+fake.latitude();
+fake.longitude();
 fake.company_name();
 fake.job_title();
 ```
@@ -59,3 +67,50 @@ fake.future_date();
 fake.recent_date();
 ```
 
+Finance and commerce:
+
+```cpp
+fake.credit_card_number();
+fake.currency_code();
+fake.iban();
+fake.product_name();
+fake.product_category();
+fake.price();
+```
+
+Crypto-shaped test data:
+
+```cpp
+fake.hex_string();
+fake.md5();
+fake.sha1();
+fake.sha256();
+```
+
+These values are random-looking fake data for tests. They are not cryptographic primitives.
+
+System and colors:
+
+```cpp
+fake.file_name();
+fake.file_path();
+fake.mime_type();
+fake.semver();
+fake.hex_color();
+fake.rgb_color();
+```
+
+Category aliases call the same generator:
+
+```cpp
+fake.person().full_name();
+fake.internet().email();
+fake.location().city();
+fake.company().name();
+fake.lorem().sentence();
+fake.finance().credit_card_number();
+fake.commerce().product_name();
+fake.crypto().sha256();
+fake.system().file_name();
+fake.color().hex_color();
+```

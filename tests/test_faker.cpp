@@ -16,6 +16,41 @@ void require(bool condition, const char* message) {
     }
 }
 
+bool is_hex_string(const std::string& value) {
+    for (const auto ch : value) {
+        if (!std::isxdigit(static_cast<unsigned char>(ch)) || std::isupper(static_cast<unsigned char>(ch))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool is_digits(const std::string& value) {
+    for (const auto ch : value) {
+        if (!std::isdigit(static_cast<unsigned char>(ch))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool luhn_valid(const std::string& digits) {
+    int sum = 0;
+    bool double_digit = false;
+    for (auto it = digits.rbegin(); it != digits.rend(); ++it) {
+        int value = *it - '0';
+        if (double_digit) {
+            value *= 2;
+            if (value > 9) {
+                value -= 9;
+            }
+        }
+        sum += value;
+        double_digit = !double_digit;
+    }
+    return sum % 10 == 0;
+}
+
 void test_deterministic_seed() {
     faker::Faker a(1234);
     faker::Faker b(1234);
@@ -74,6 +109,59 @@ void test_category_smoke() {
     require(fake.future_date().size() == 10, "future date yyyy-mm-dd");
 }
 
+void test_expanded_categories() {
+    faker::Faker fake(404);
+
+    const auto mac = fake.mac_address();
+    require(mac.size() == 17 && mac[2] == ':' && mac[5] == ':' && mac[8] == ':' &&
+        mac[11] == ':' && mac[14] == ':', "mac address shape");
+
+    const auto ipv6 = fake.ipv6();
+    require(ipv6.find(':') != std::string::npos, "ipv6 contains separators");
+
+    require(fake.password(24).size() == 24, "password length");
+    require(!fake.user_agent().empty(), "user agent");
+    require(!fake.state().empty(), "state");
+    require(fake.zip_code().size() == 5 && is_digits(fake.zip_code()), "zip code");
+    require(fake.latitude() >= -90.0 && fake.latitude() <= 90.0, "latitude range");
+    require(fake.longitude() >= -180.0 && fake.longitude() <= 180.0, "longitude range");
+
+    const auto card = fake.credit_card_number();
+    require(card.size() == 16 && is_digits(card) && luhn_valid(card), "credit card shape");
+    require(fake.currency_code().size() == 3, "currency code");
+    require(fake.iban().size() == 22, "iban shape");
+    require(!fake.product_name().empty(), "product name");
+    require(!fake.product_category().empty(), "product category");
+    require(fake.price().find('.') != std::string::npos, "price decimal");
+
+    require(fake.md5().size() == 32 && is_hex_string(fake.md5()), "md5 shape");
+    require(fake.sha1().size() == 40 && is_hex_string(fake.sha1()), "sha1 shape");
+    require(fake.sha256().size() == 64 && is_hex_string(fake.sha256()), "sha256 shape");
+    require(fake.hex_string(12).size() == 12, "hex string length");
+
+    require(fake.file_name().find('.') != std::string::npos, "file name extension");
+    require(fake.file_path().find('/') != std::string::npos, "file path separator");
+    require(fake.mime_type().find('/') != std::string::npos, "mime type separator");
+    require(fake.semver().find('.') != std::string::npos, "semver");
+    require(fake.hex_color().size() == 7 && fake.hex_color()[0] == '#', "hex color");
+    require(fake.rgb_color().find("rgb(") == 0, "rgb color");
+}
+
+void test_category_aliases() {
+    faker::Faker fake(8080);
+
+    require(!fake.person().full_name().empty(), "person alias");
+    require(fake.internet().email().find('@') != std::string::npos, "internet alias");
+    require(!fake.location().city().empty(), "location alias");
+    require(!fake.company().name().empty(), "company alias");
+    require(fake.lorem().sentence().back() == '.', "lorem alias");
+    require(luhn_valid(fake.finance().credit_card_number()), "finance alias");
+    require(!fake.commerce().product_name().empty(), "commerce alias");
+    require(fake.crypto().sha256().size() == 64, "crypto alias");
+    require(!fake.system().file_name().empty(), "system alias");
+    require(fake.color().hex_color()[0] == '#', "color alias");
+}
+
 void test_validation() {
     faker::Faker fake(1);
 
@@ -92,6 +180,22 @@ void test_validation() {
         threw = true;
     }
     require(threw, "invalid probability throws");
+
+    threw = false;
+    try {
+        fake.password(0);
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+    require(threw, "invalid password length throws");
+
+    threw = false;
+    try {
+        fake.price(10.0, 1.0);
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+    require(threw, "invalid price range throws");
 }
 
 } // namespace
@@ -101,9 +205,10 @@ int main() {
     test_uuid_shape();
     test_ranges_and_helpers();
     test_category_smoke();
+    test_expanded_categories();
+    test_category_aliases();
     test_validation();
 
     std::cout << "faker_tests passed\n";
     return 0;
 }
-
