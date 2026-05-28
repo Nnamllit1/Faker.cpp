@@ -113,4 +113,4 @@ The hash helpers are fake random-looking strings for tests and fixtures. They ar
 
 ## License
 
-No license is included yet. This private repository is proprietary by default until a license is added.
+No license chosen yet.
