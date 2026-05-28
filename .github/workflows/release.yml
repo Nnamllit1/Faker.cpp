@@ -64,16 +64,22 @@ jobs:
           - name: linux
             os: ubuntu-latest
             asset: faker-cpp-${{ github.event.inputs.version }}-linux-x64.zip
+            benchmark: build/faker_benchmark
+            perf_json: performance-linux-x64.json
+            perf_md: performance-linux-x64.md
           - name: windows
             os: windows-latest
             asset: faker-cpp-${{ github.event.inputs.version }}-windows-x64.zip
+            benchmark: build/Release/faker_benchmark.exe
+            perf_json: performance-windows-x64.json
+            perf_md: performance-windows-x64.md
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFAKER_BUILD_TESTS=ON -DFAKER_BUILD_EXAMPLES=ON
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFAKER_BUILD_TESTS=ON -DFAKER_BUILD_EXAMPLES=ON -DFAKER_BUILD_BENCHMARKS=ON
 
       - name: Build
         run: cmake --build build --config Release
@@ -94,11 +100,46 @@ jobs:
       - name: Create archive
         run: cmake -E tar cfv "${{ matrix.asset }}" --format=zip package/Faker.cpp
 
+      - name: Find previous performance metric
+        id: previous
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p previous-performance
+          previous_tag="$(gh release list --exclude-drafts --limit 20 | awk -v current="${{ github.event.inputs.version }}" '$1 != current { print $1; exit }')"
+          if [ -n "$previous_tag" ]; then
+            gh release download "$previous_tag" \
+              --pattern "${{ matrix.perf_json }}" \
+              --dir previous-performance || true
+          fi
+
+          if [ -f "previous-performance/${{ matrix.perf_json }}" ]; then
+            echo "args=--previous previous-performance/${{ matrix.perf_json }}" >> "$GITHUB_OUTPUT"
+            echo "Previous performance metric: $previous_tag/${{ matrix.perf_json }}"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+            echo "No previous performance metric found."
+          fi
+
+      - name: Run performance benchmark
+        shell: bash
+        run: |
+          "${{ matrix.benchmark }}" \
+            --rows 1000000 \
+            --version "${{ github.event.inputs.version }}" \
+            --commit "${{ github.sha }}" \
+            --os "${{ matrix.name }}-x64" \
+            --output-json "${{ matrix.perf_json }}" \
+            --output-md "${{ matrix.perf_md }}" \
+            ${{ steps.previous.outputs.args }}
+
       - name: Upload release asset
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release upload "${{ github.event.inputs.version }}" "${{ matrix.asset }}" --clobber
+        run: gh release upload "${{ github.event.inputs.version }}" "${{ matrix.asset }}" "${{ matrix.perf_json }}" "${{ matrix.perf_md }}" --clobber
 
   publish:
     name: Publish release

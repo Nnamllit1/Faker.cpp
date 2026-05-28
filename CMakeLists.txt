@@ -15,6 +15,7 @@ endif()
 
 option(FAKER_BUILD_TESTS "Build Faker.cpp tests" ${FAKER_TOP_LEVEL_DEFAULT})
 option(FAKER_BUILD_EXAMPLES "Build Faker.cpp examples" ${FAKER_TOP_LEVEL_DEFAULT})
+option(FAKER_BUILD_BENCHMARKS "Build Faker.cpp benchmarks" OFF)
 
 add_library(faker src/faker.cpp)
 add_library(faker::faker ALIAS faker)
@@ -41,6 +42,11 @@ if(FAKER_BUILD_TESTS)
     add_executable(faker_tests tests/test_faker.cpp)
     target_link_libraries(faker_tests PRIVATE faker::faker)
     add_test(NAME faker_tests COMMAND faker_tests)
+endif()
+
+if(FAKER_BUILD_BENCHMARKS)
+    add_executable(faker_benchmark bench/benchmark.cpp)
+    target_link_libraries(faker_benchmark PRIVATE faker::faker)
 endif()
 
 install(TARGETS faker

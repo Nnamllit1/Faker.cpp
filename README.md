@@ -59,6 +59,25 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+## Performance Benchmarks
+
+Build the benchmark target with:
+
+```sh
+cmake -S . -B build -DFAKER_BUILD_TESTS=ON -DFAKER_BUILD_EXAMPLES=ON -DFAKER_BUILD_BENCHMARKS=ON
+cmake --build build
+```
+
+Run the full "everything" benchmark:
+
+```sh
+./build/faker_benchmark --rows 1000000
+```
+
+The benchmark generates every flat public Faker API once per row, writes `performance.json` and `performance.md`, and prints throughput to stdout. Release builds attach per-platform performance reports as release assets and compare against the previous release metric when one is available.
+
+Benchmark numbers from virtual machines and GitHub-hosted runners are useful for comparing one release to another under similar conditions. They are not absolute hardware claims.
+
 ## API Snapshot
 
 `faker::Faker` supports:
