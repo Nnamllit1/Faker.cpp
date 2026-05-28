@@ -18,6 +18,54 @@ def speed_text(delta):
     return "no change"
 
 
+def apply_comparison(current, previous, missing_text):
+    current["previous_available"] = previous is not None
+    current["previous_comparable"] = False
+
+    if not previous:
+        current["seconds_delta_percent"] = 0.0
+        current["rows_per_second_delta_percent"] = 0.0
+        current["calls_per_second_delta_percent"] = 0.0
+        current["comparison"] = missing_text
+        return
+
+    if current.get("calls_per_row") != previous.get("calls_per_row"):
+        current["seconds_delta_percent"] = 0.0
+        current["rows_per_second_delta_percent"] = 0.0
+        current["calls_per_second_delta_percent"] = 0.0
+        current["comparison"] = "workload changed"
+        return
+
+    current["previous_comparable"] = True
+    current["seconds_delta_percent"] = percent_change(current["seconds"], previous["seconds"])
+    current["rows_per_second_delta_percent"] = percent_change(
+        current["rows_per_second"], previous["rows_per_second"]
+    )
+    current["calls_per_second_delta_percent"] = percent_change(
+        current["calls_per_second"], previous["calls_per_second"]
+    )
+    current["comparison"] = speed_text(current["rows_per_second_delta_percent"])
+
+
+def compare_sections(current, previous):
+    previous_sections = {}
+    if previous:
+        previous_sections = {
+            section.get("name"): section
+            for section in previous.get("sections", [])
+            if section.get("name")
+        }
+
+    for section in current.get("sections", []):
+        apply_comparison(section, previous_sections.get(section.get("name")), "new result")
+
+
+def same_result_set(current, previous):
+    current_names = sorted(section.get("name") for section in current.get("sections", []) if section.get("name"))
+    previous_names = sorted(section.get("name") for section in previous.get("sections", []) if section.get("name"))
+    return not current_names or not previous_names or current_names == previous_names
+
+
 def load_previous(path):
     if not path:
         return {}
@@ -38,21 +86,14 @@ def combine_metrics(args):
             current = json.load(file)
 
         previous = previous_by_os.get(current.get("os"))
-        current["previous_available"] = previous is not None
-        if previous:
-            current["seconds_delta_percent"] = percent_change(current["seconds"], previous["seconds"])
-            current["rows_per_second_delta_percent"] = percent_change(
-                current["rows_per_second"], previous["rows_per_second"]
-            )
-            current["calls_per_second_delta_percent"] = percent_change(
-                current["calls_per_second"], previous["calls_per_second"]
-            )
-            current["comparison"] = speed_text(current["rows_per_second_delta_percent"])
-        else:
+        apply_comparison(current, previous, "no previous metric")
+        if previous and not same_result_set(current, previous):
+            current["previous_comparable"] = False
             current["seconds_delta_percent"] = 0.0
             current["rows_per_second_delta_percent"] = 0.0
             current["calls_per_second_delta_percent"] = 0.0
-            current["comparison"] = "no previous metric"
+            current["comparison"] = "workload changed"
+        compare_sections(current, previous)
 
         systems.append(current)
 
@@ -66,6 +107,7 @@ def combine_metrics(args):
         "runs": systems[0].get("runs", 1),
         "metric": systems[0].get("metric", "single"),
         "calls_per_row": systems[0]["calls_per_row"],
+        "sections_per_row": systems[0].get("sections_per_row", len(systems[0].get("sections", []))),
         "total_calls_per_system": systems[0]["total_calls"],
         "total_calls_all_runs_per_system": systems[0].get(
             "total_calls_all_runs", systems[0]["total_calls"] * systems[0].get("runs", 1)
@@ -89,9 +131,13 @@ def write_markdown(path, report):
         f"- Rows per system: `{report['rows']}`",
         f"- Runs per system: `{report['runs']}`",
         f"- Comparison metric: `{report['metric']}`",
-        f"- Calls per row: `{report['calls_per_row']}`",
+        f"- Generated results per row: `{report['calls_per_row']}`",
         f"- Total calls per run: `{report['total_calls_per_system']}`",
         f"- Total calls across runs per system: `{report['total_calls_all_runs_per_system']}`",
+        "",
+        "Aggregate rows are marked `workload changed` when the generated-result count differs from the previous release. Use the per-result tables for regression checks.",
+        "",
+        "## Aggregate",
         "",
         "| OS | Median seconds | Best seconds | Rows/s | Calls/s | Previous |",
         "| --- | ---: | ---: | ---: | ---: | --- |",
@@ -107,10 +153,30 @@ def write_markdown(path, report):
             f"{system['comparison']} |"
         )
 
+    for system in report["systems"]:
+        lines.extend(
+            [
+                "",
+                f"## {system['os']} Results",
+                "",
+                "| Result | Median seconds | Best seconds | Rows/s | Calls/s | Previous |",
+                "| --- | ---: | ---: | ---: | ---: | --- |",
+            ]
+        )
+        for section in system.get("sections", []):
+            lines.append(
+                f"| `{section['name']}` | "
+                f"{section['seconds']:.6f} | "
+                f"{section.get('best_seconds', section['seconds']):.6f} | "
+                f"{section['rows_per_second']:.2f} | "
+                f"{section['calls_per_second']:.2f} | "
+                f"{section['comparison']} |"
+            )
+
     lines.extend(
         [
             "",
-            "The benchmark generates every flat public Faker API once per row.",
+            "The benchmark generates each flat public Faker API in its own named result section.",
             "Runner and VM numbers are best used for release-to-release comparison, not absolute hardware claims.",
             "",
         ]
@@ -126,7 +192,11 @@ def write_release_body(path, report):
         "## Performance",
         "",
         f"Benchmark workload: `{report['runs']}` runs per OS, `{report['rows']}` rows per run, "
-        f"`{report['calls_per_row']}` generated values per row. The table uses `{report['metric']}` results.",
+        f"`{report['calls_per_row']}` generated values per row. The tables use `{report['metric']}` results.",
+        "",
+        "Aggregate rows are only directly comparable when the generated-result count is unchanged. Per-result rows show matching generators independently.",
+        "",
+        "### Aggregate",
         "",
         "| OS | Median seconds | Best seconds | Rows/s | Calls/s | Previous |",
         "| --- | ---: | ---: | ---: | ---: | --- |",
@@ -141,6 +211,26 @@ def write_release_body(path, report):
             f"{system['calls_per_second']:.2f} | "
             f"{system['comparison']} |"
         )
+
+    for system in report["systems"]:
+        lines.extend(
+            [
+                "",
+                f"### {system['os']} Results",
+                "",
+                "| Result | Median seconds | Best seconds | Rows/s | Calls/s | Previous |",
+                "| --- | ---: | ---: | ---: | ---: | --- |",
+            ]
+        )
+        for section in system.get("sections", []):
+            lines.append(
+                f"| `{section['name']}` | "
+                f"{section['seconds']:.6f} | "
+                f"{section.get('best_seconds', section['seconds']):.6f} | "
+                f"{section['rows_per_second']:.2f} | "
+                f"{section['calls_per_second']:.2f} | "
+                f"{section['comparison']} |"
+            )
 
     lines.extend(
         [

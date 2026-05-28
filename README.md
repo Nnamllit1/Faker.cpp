@@ -74,7 +74,7 @@ Run the full "everything" benchmark:
 ./build/faker_benchmark --rows 1000000 --runs 10
 ```
 
-The benchmark generates every flat public Faker API once per row, writes `performance.json` and `performance.md`, and prints throughput to stdout. Release builds run performance in separate fresh Linux and Windows runner jobs, use 10 runs of 1,000,000 rows, compare the median result against the previous release, and attach one combined `performance.json` plus one combined `performance.md`.
+The benchmark generates every flat public Faker API once per row, reports one named result section per API, writes `performance.json` and `performance.md`, and prints throughput to stdout. Release builds run performance in separate fresh Linux and Windows runner jobs, use 10 runs of 1,000,000 rows, compare matching named result sections against the previous release, and attach one combined `performance.json` plus one combined `performance.md`. Aggregate rows are included for context and marked as a changed workload when the generated-result count changes.
 
 Benchmark numbers from virtual machines and GitHub-hosted runners are useful for comparing one release to another under similar conditions. They are not absolute hardware claims.
 
