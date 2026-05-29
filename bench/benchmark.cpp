@@ -16,6 +16,7 @@
 namespace {
 
 constexpr std::uint64_t kSeed = 123456789;
+constexpr double kVarianceThresholdPercent = 5.0;
 
 struct Options {
     int rows = 1000000;
@@ -221,10 +222,18 @@ double percent_change(double current, double previous) {
 std::string speed_text(double delta_percent) {
     std::ostringstream out;
     out << std::fixed << std::setprecision(2);
-    if (delta_percent > 0.0) {
+    if (delta_percent >= kVarianceThresholdPercent) {
         out << delta_percent << "% faster";
-    } else if (delta_percent < 0.0) {
-        out << -delta_percent << "% slower";
+    } else if (delta_percent <= -kVarianceThresholdPercent) {
+        out << "possible regression (" << -delta_percent << "% slower)";
+    } else if (delta_percent != 0.0) {
+        out << "within runtime variance (";
+        if (delta_percent > 0.0) {
+            out << delta_percent << "% faster";
+        } else {
+            out << -delta_percent << "% slower";
+        }
+        out << ")";
     } else {
         out << "no change";
     }
@@ -496,6 +505,7 @@ void write_markdown_report(
     out << "- Comparison metric: `median`\n";
     out << "- Generated results per row: `" << result.calls_per_row << "`\n";
     out << "- Previous aggregate: `" << (previous.available ? speed_text(rows_delta) : "no previous metric") << "`\n\n";
+    out << "Small changes under 5% are treated as normal runner/runtime variation.\n\n";
 
     out << "## Aggregate\n\n";
     out << "| Median seconds | Best seconds | Rows/s | Calls/s | Total calls/run |\n";
@@ -507,6 +517,8 @@ void write_markdown_report(
         << result.total_calls << " |\n\n";
 
     out << "## Results\n\n";
+    out << "<details>\n";
+    out << "<summary>Full result table</summary>\n\n";
     out << "| Result | Median seconds | Best seconds | Rows/s | Calls/s |\n";
     out << "| --- | ---: | ---: | ---: | ---: |\n";
     for (const auto& section : result.sections) {
@@ -516,6 +528,7 @@ void write_markdown_report(
             << std::setprecision(2) << section.rows_per_second << " | "
             << section.calls_per_second << " |\n";
     }
+    out << "\n</details>\n";
 
     out << "\nEach named result is benchmarked independently. Adding a new generated value creates a new row instead of changing the workload of existing rows.\n";
 }
