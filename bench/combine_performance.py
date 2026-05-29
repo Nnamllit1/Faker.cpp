@@ -160,9 +160,31 @@ def write_json(path, report):
         file.write("\n")
 
 
+def status_marker(status):
+    markers = {
+        "improved": "🟢",
+        "slower": "🔴",
+        "within_variance": "⚪",
+        "new_result": "🔵",
+        "workload_changed": "🟡",
+        "no_previous_metric": "⚫",
+    }
+    return markers.get(status, "⚫")
+
+
+def comparison_cell(item):
+    return f"{status_marker(item.get('comparison_status'))} {item['comparison']}"
+
+
+def status_legend_lines():
+    return [
+        "Legend: 🟢 measured faster, 🔴 possible regression, ⚪ within runtime variance, 🔵 new result, 🟡 workload changed, ⚫ no previous metric.",
+    ]
+
+
 def result_table(systems):
     lines = [
-        "| OS | Median seconds | Best seconds | Rows/s | Calls/s | Previous |",
+        "| OS | Median seconds | Best seconds | Rows/s | Calls/s | Comparison |",
         "| --- | ---: | ---: | ---: | ---: | --- |",
     ]
     for system in systems:
@@ -172,14 +194,14 @@ def result_table(systems):
             f"{system.get('best_seconds', system['seconds']):.6f} | "
             f"{system['rows_per_second']:.2f} | "
             f"{system['calls_per_second']:.2f} | "
-            f"{system['comparison']} |"
+            f"{comparison_cell(system)} |"
         )
     return lines
 
 
 def section_table(system):
     lines = [
-        "| Result | Median seconds | Best seconds | Rows/s | Calls/s | Previous |",
+        "| Result | Median seconds | Best seconds | Rows/s | Calls/s | Comparison |",
         "| --- | ---: | ---: | ---: | ---: | --- |",
     ]
     for section in system.get("sections", []):
@@ -189,7 +211,7 @@ def section_table(system):
             f"{section.get('best_seconds', section['seconds']):.6f} | "
             f"{section['rows_per_second']:.2f} | "
             f"{section['calls_per_second']:.2f} | "
-            f"{section['comparison']} |"
+            f"{comparison_cell(section)} |"
         )
     return lines
 
@@ -308,10 +330,10 @@ def comparison_summary_lines(report):
     for system in report["systems"]:
         counts = status_counts(system)
         lines.append(
-            f"- `{system['os']}`: {counts.get('improved', 0)} improved, "
-            f"{counts.get('slower', 0)} possible regressions, "
-            f"{counts.get('within_variance', 0)} within runtime variance, "
-            f"{counts.get('new_result', 0)} new results."
+            f"- `{system['os']}`: 🟢 {counts.get('improved', 0)} improved, "
+            f"🔴 {counts.get('slower', 0)} possible regressions, "
+            f"⚪ {counts.get('within_variance', 0)} within runtime variance, "
+            f"🔵 {counts.get('new_result', 0)} new results."
         )
     return lines
 
@@ -389,6 +411,8 @@ def write_markdown(path, report):
         f"Small changes under {VARIANCE_THRESHOLD_PERCENT:.0f}% are treated as normal runner/runtime variation.",
         "Aggregate rows are marked `workload changed` when the generated-result count differs from the previous release. Use the per-result tables for regression checks.",
         "",
+        *status_legend_lines(),
+        "",
         "## Aggregate",
         "",
         *result_table(report["systems"]),
@@ -454,6 +478,8 @@ def write_release_body(path, report, args):
     lines.extend(
         [
             "Aggregate rows are only directly comparable when the generated-result count is unchanged. Per-result rows show matching generators independently.",
+            "",
+            *status_legend_lines(),
             "",
             *result_table(report["systems"]),
             "",
