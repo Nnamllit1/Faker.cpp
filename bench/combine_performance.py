@@ -7,6 +7,17 @@ from pathlib import Path
 VARIANCE_THRESHOLD_PERCENT = 5.0
 
 
+DEFAULT_RELEASE_HIGHLIGHTS = {
+    "Auto": ["Release artifacts, packages, and performance reports were generated from this commit."],
+    "Documentation": ["Documentation and release wording were updated."],
+    "Bug fixes": ["Bug fixes were included."],
+    "New features": ["New user-facing features were included."],
+    "Performance": ["Performance-related changes were included."],
+    "Maintenance": ["Maintenance and release infrastructure changes were included."],
+    "Mixed": ["This release includes changes from multiple areas."],
+}
+
+
 def percent_change(current, previous):
     if previous == 0:
         return 0.0
@@ -305,6 +316,63 @@ def comparison_summary_lines(report):
     return lines
 
 
+def release_bool(value, default=True):
+    if value is None:
+        return default
+    normalized = str(value).strip().lower()
+    if normalized in ("1", "true", "yes", "y", "on"):
+        return True
+    if normalized in ("0", "false", "no", "n", "off"):
+        return False
+    return default
+
+
+def split_manual_items(value):
+    if not value:
+        return []
+    items = []
+    for raw_item in str(value).replace("\\n", "|").replace("\n", "|").split("|"):
+        item = raw_item.strip()
+        if item.startswith("- "):
+            item = item[2:].strip()
+        if item:
+            items.append(item)
+    return items
+
+
+def release_highlight_lines(args):
+    area = args.release_area if args.release_area in DEFAULT_RELEASE_HIGHLIGHTS else "Auto"
+    highlights = split_manual_items(args.release_highlights) or DEFAULT_RELEASE_HIGHLIGHTS[area]
+    notes = split_manual_items(args.release_notes)
+    runtime_changed = release_bool(args.runtime_changed)
+
+    lines = [
+        "> **Release area:** " + area,
+        ">",
+        "> **Highlights:**",
+    ]
+    lines.extend(f"> - {highlight}" for highlight in highlights)
+
+    if notes:
+        lines.extend([">", "> **Notes:**"])
+        lines.extend(f"> - {note}" for note in notes)
+
+    runtime_note = (
+        "Generator/runtime code changed; performance tables can be used as regression signals for related changes."
+        if runtime_changed
+        else "Generator/runtime code did not change; performance tables are fresh-runner measurements, not proof of runtime optimization."
+    )
+    lines.extend(
+        [
+            ">",
+            "> **Runtime code:** " + runtime_note,
+            ">",
+            "> **Full metrics:** Download `performance.json` for machine-readable data or `performance.md` for the complete Markdown report.",
+        ]
+    )
+    return lines
+
+
 def write_markdown(path, report):
     lines = [
         "# Faker.cpp Performance",
@@ -348,23 +416,18 @@ def write_markdown(path, report):
     Path(path).write_text("\n".join(lines), encoding="utf-8")
 
 
-def write_release_body(path, report):
+def write_release_body(path, report, args):
     workload_notes = workload_change_notes(report)
     time_note = aggregate_time_note(report)
     improvement_note = top_measured_improvement_note(report)
+    runtime_changed = release_bool(args.runtime_changed)
 
     lines = [
         f"Manual Faker.cpp release built from `{report['commit']}`. The planned stable release target remains `v0.1.0`; this project is still unlicensed.",
         "",
         "## Release Highlights",
         "",
-        "> **What changed:** Performance reporting now separates aggregate workload context from per-generator comparisons.",
-        ">",
-        f"> **What improved:** Comparable benchmark changes under {VARIANCE_THRESHOLD_PERCENT:.0f}% are shown as runtime variance instead of regressions.",
-        ">",
-        "> **What is new:** Full Linux and Windows per-generator tables are available in expandable sections below.",
-        ">",
-        "> **Full metrics:** Download `performance.json` for machine-readable data or `performance.md` for the complete Markdown report.",
+        *release_highlight_lines(args),
         "",
         "## Performance Summary",
         "",
@@ -373,7 +436,11 @@ def write_release_body(path, report):
         "",
         f"Small per-generator movements below {VARIANCE_THRESHOLD_PERCENT:.0f}% are treated as runtime variance.",
         "",
-        "Performance tables show fresh-runner measurements for this release. Treat them as regression signals only when the related generator/runtime code changed.",
+        (
+            "Performance tables compare fresh-runner measurements for this release against the previous release."
+            if runtime_changed
+            else "Performance tables show fresh-runner measurements for this release. Treat them as runner context only because generator/runtime code did not change."
+        ),
         "",
     ]
 
@@ -440,13 +507,17 @@ def main():
     parser.add_argument("--output-json", required=True)
     parser.add_argument("--output-md", required=True)
     parser.add_argument("--release-body", required=True)
+    parser.add_argument("--release-area", default="Auto")
+    parser.add_argument("--release-highlights", default="")
+    parser.add_argument("--release-notes", default="")
+    parser.add_argument("--runtime-changed", default="true")
     parser.add_argument("metrics", nargs="+")
     args = parser.parse_args()
 
     report = combine_metrics(args)
     write_json(args.output_json, report)
     write_markdown(args.output_md, report)
-    write_release_body(args.release_body, report)
+    write_release_body(args.release_body, report, args)
 
 
 if __name__ == "__main__":

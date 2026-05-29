@@ -12,6 +12,32 @@ on:
         required: true
         default: false
         type: boolean
+      release_area:
+        description: "Main kind of release notes to show"
+        required: true
+        default: "Auto"
+        type: choice
+        options:
+          - "Auto"
+          - "Documentation"
+          - "Bug fixes"
+          - "New features"
+          - "Performance"
+          - "Maintenance"
+          - "Mixed"
+      runtime_changed:
+        description: "Generator/runtime code changed in this release"
+        required: true
+        default: true
+        type: boolean
+      release_highlights:
+        description: "Optional highlight bullets, separated with |"
+        required: false
+        type: string
+      release_notes:
+        description: "Optional extra note for the release highlights"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -177,6 +203,11 @@ jobs:
           fi
 
       - name: Combine performance report
+        env:
+          RELEASE_AREA: ${{ github.event.inputs.release_area }}
+          RELEASE_HIGHLIGHTS: ${{ github.event.inputs.release_highlights }}
+          RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
+          RUNTIME_CHANGED: ${{ github.event.inputs.runtime_changed }}
         run: |
           previous_args=()
           if [ -f previous-performance/performance.json ]; then
@@ -189,6 +220,10 @@ jobs:
             --output-json performance.json \
             --output-md performance.md \
             --release-body release-body.md \
+            --release-area "$RELEASE_AREA" \
+            --release-highlights "$RELEASE_HIGHLIGHTS" \
+            --release-notes "$RELEASE_NOTES" \
+            --runtime-changed "$RUNTIME_CHANGED" \
             "${previous_args[@]}" \
             current-performance/tmp-performance-*.json
 
