@@ -4,10 +4,12 @@ Faker.cpp generates fake but realistic-looking data for tests, prototypes, demos
 
 The design goal is close to Dear ImGui integration style: a normal C++ header and source file that can be vendored directly, with CMake support for projects that want package-style consumption.
 
-The first release focuses on common data:
+The `v0.1.0` release is the first stable baseline for the current API and package layout. A future `1.0` release should only make stronger compatibility promises after the API, documentation, release assets, and tested platform story have had more real use.
+
+The current release focuses on common data:
 
 - names and usernames
-- email, domains, URLs, and IPv4 addresses
+- email, domains, URLs, IPv4, IPv6, and MAC addresses
 - phone numbers and addresses
 - companies and job titles
 - lorem-like words, sentences, and paragraphs

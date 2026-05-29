@@ -1,6 +1,6 @@
 # Faker.cpp
 
-Faker.cpp is a small C++17 fake data generation library inspired by faker-style libraries in JavaScript. It targets Linux and Windows first. macOS should be portable in theory, but it is not part of the tested CI matrix yet.
+Faker.cpp is a small C++17 fake data generation library inspired by faker-style libraries in JavaScript. The `v0.1.0` release is the first stable project baseline: Linux and Windows are tested in CI, while macOS should be portable in theory but is not part of the tested matrix yet.
 
 The library is intentionally simple: include the header, compile the source file, and generate data from a local `faker::Faker` instance.
 
@@ -58,6 +58,10 @@ cmake -S . -B build -DFAKER_BUILD_TESTS=ON -DFAKER_BUILD_EXAMPLES=ON
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
+
+## Release Status
+
+`v0.1.0` is intended as the first stable baseline for the current API, packaging, and release workflow. A future `1.0` release should mean the public API, package layout, platform support, and documentation are ready to be treated as long-term compatibility promises.
 
 ## Performance Benchmarks
 
