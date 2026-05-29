@@ -225,7 +225,7 @@ std::string speed_text(double delta_percent) {
     if (delta_percent >= kVarianceThresholdPercent) {
         out << delta_percent << "% faster";
     } else if (delta_percent <= -kVarianceThresholdPercent) {
-        out << "possible regression (" << -delta_percent << "% slower)";
+        out << "measured slower (" << -delta_percent << "% slower, needs confirmation)";
     } else if (delta_percent != 0.0) {
         out << "within runtime variance (";
         if (delta_percent > 0.0) {

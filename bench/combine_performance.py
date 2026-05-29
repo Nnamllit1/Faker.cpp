@@ -32,11 +32,37 @@ def direction_text(delta):
     return "no change"
 
 
-def classify_speed(delta):
+STATUS_LABELS = {
+    "improved": "faster",
+    "slower": "measured slower",
+    "within_variance": "runtime variance",
+    "runner_context": "runner context",
+    "new_result": "new result",
+    "workload_changed": "workload changed",
+    "no_previous_metric": "no previous metric",
+}
+
+
+def ranges_overlap(current, previous):
+    current_runs = current.get("run_seconds") or []
+    previous_runs = previous.get("run_seconds") or []
+    if not current_runs or not previous_runs:
+        return False
+    return min(current_runs) <= max(previous_runs) and min(previous_runs) <= max(current_runs)
+
+
+def classify_speed(delta, current=None, previous=None):
+    if (
+        current is not None
+        and previous is not None
+        and abs(delta) >= VARIANCE_THRESHOLD_PERCENT
+        and ranges_overlap(current, previous)
+    ):
+        return "within_variance", f"within runtime variance ({direction_text(delta)} measured, run ranges overlap)"
     if delta >= VARIANCE_THRESHOLD_PERCENT:
         return "improved", direction_text(delta)
     if delta <= -VARIANCE_THRESHOLD_PERCENT:
-        return "slower", f"possible regression ({direction_text(delta)})"
+        return "slower", f"measured slower ({direction_text(delta)}, needs confirmation)"
     if delta == 0:
         return "within_variance", "within runtime variance"
     return "within_variance", f"within runtime variance ({direction_text(delta)})"
@@ -79,7 +105,7 @@ def apply_comparison(current, previous, missing_text, missing_status):
     current["calls_per_second_delta_percent"] = percent_change(
         current["calls_per_second"], previous["calls_per_second"]
     )
-    status, comparison = classify_speed(current["rows_per_second_delta_percent"])
+    status, comparison = classify_speed(current["rows_per_second_delta_percent"], current, previous)
     current["comparison"] = comparison
     current["comparison_status"] = status
 
@@ -193,26 +219,17 @@ def mark_runner_context(report):
                 )
 
 
-def status_marker(status):
-    markers = {
-        "improved": "🟢",
-        "slower": "🔴",
-        "within_variance": "⚪",
-        "runner_context": "🟣",
-        "new_result": "🔵",
-        "workload_changed": "🟡",
-        "no_previous_metric": "⚫",
-    }
-    return markers.get(status, "⚫")
+def status_label(status):
+    return STATUS_LABELS.get(status, "unknown")
 
 
 def comparison_cell(item):
-    return f"{status_marker(item.get('comparison_status'))} {item['comparison']}"
+    return f"{status_label(item.get('comparison_status'))}: {item['comparison']}"
 
 
 def status_legend_lines():
     return [
-        "Legend: 🟢 measured faster, 🔴 possible regression, ⚪ within runtime variance, 🟣 runner context, 🔵 new result, 🟡 workload changed, ⚫ no previous metric.",
+        "Legend: faster, measured slower, runtime variance, runner context, new result, workload changed, no previous metric.",
     ]
 
 
@@ -364,11 +381,11 @@ def comparison_summary_lines(report):
     for system in report["systems"]:
         counts = status_counts(system)
         lines.append(
-            f"- `{system['os']}`: 🟢 {counts.get('improved', 0)} improved, "
-            f"🔴 {counts.get('slower', 0)} possible regressions, "
-            f"⚪ {counts.get('within_variance', 0)} within runtime variance, "
-            f"🟣 {counts.get('runner_context', 0)} runner context, "
-            f"🔵 {counts.get('new_result', 0)} new results."
+            f"- `{system['os']}`: {counts.get('improved', 0)} faster, "
+            f"{counts.get('slower', 0)} measured slower, "
+            f"{counts.get('within_variance', 0)} within runtime variance, "
+            f"{counts.get('runner_context', 0)} runner context, "
+            f"{counts.get('new_result', 0)} new results."
         )
     return lines
 
@@ -404,7 +421,7 @@ def release_highlight_lines(args):
         lines.extend(f"> - {note}" for note in notes)
 
     runtime_note = (
-        "Generator/runtime code changed; performance tables can be used as regression signals for related changes."
+        "Generator/runtime code changed; performance tables can be used as comparison signals for related changes."
         if runtime_changed
         else "Generator/runtime code did not change; performance tables are fresh-runner measurements, not proof of runtime optimization."
     )
@@ -433,7 +450,7 @@ def write_markdown(path, report):
         f"- Total calls across runs per system: `{report['total_calls_all_runs_per_system']}`",
         "",
         f"Small changes under {VARIANCE_THRESHOLD_PERCENT:.0f}% are treated as normal runner/runtime variation.",
-        "Aggregate rows are marked `workload changed` when the generated-result count differs from the previous release. Use the per-result tables for regression checks.",
+        "Aggregate rows are marked `workload changed` when the generated-result count differs from the previous release. Use the per-result tables for existing-generator checks.",
         "",
         *status_legend_lines(),
         "",

@@ -80,7 +80,7 @@ Run the full "everything" benchmark:
 
 The benchmark generates every flat public Faker API once per row, reports one named result section per API, writes `performance.json` and `performance.md`, and prints throughput to stdout. Release builds run performance in separate fresh Linux and Windows runner jobs, use 10 runs of 1,000,000 rows, compare matching named result sections against the previous release, and attach one combined `performance.json` plus one combined `performance.md`. Aggregate rows are included for context and marked as a changed workload when the generated-result count changes.
 
-Benchmark numbers from virtual machines and GitHub-hosted runners are useful for comparing one release to another under similar conditions. Small deltas under 5% are treated as normal runner/runtime variation, not real regressions. Aggregate rows are marked as `workload changed` when new generators change the generated-result count, so per-generator rows are the best place to inspect regressions.
+Benchmark numbers from virtual machines and GitHub-hosted runners are useful for comparing one release to another under similar conditions. Small deltas under 5% are treated as normal runner/runtime variation, not measured slowdowns. Aggregate rows are marked as `workload changed` when new generators change the generated-result count, so per-generator rows are the best place to inspect existing generator performance.
 
 ## API Snapshot
 
