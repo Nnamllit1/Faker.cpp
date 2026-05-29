@@ -92,11 +92,17 @@ void test_category_smoke() {
     require(!fake.first_name().empty(), "first_name");
     require(!fake.last_name().empty(), "last_name");
     require(fake.full_name().find(' ') != std::string::npos, "full_name");
+    require(!fake.name_prefix().empty(), "name_prefix");
+    require(!fake.name_suffix().empty(), "name_suffix");
+    require(!fake.middle_name().empty(), "middle_name");
     require(fake.email().find('@') != std::string::npos, "email");
     require(fake.url().find("https://") == 0, "url");
     require(!fake.ipv4().empty(), "ipv4");
     require(!fake.phone_number().empty(), "phone_number");
+    require(!fake.building_number().empty(), "building_number");
+    require(!fake.street_name().empty(), "street_name");
     require(!fake.street_address().empty(), "street_address");
+    require(!fake.secondary_address().empty(), "secondary_address");
     require(!fake.city().empty(), "city");
     require(!fake.country().empty(), "country");
     require(!fake.company_name().empty(), "company_name");
@@ -123,6 +129,7 @@ void test_expanded_categories() {
     require(!fake.user_agent().empty(), "user agent");
     require(!fake.state().empty(), "state");
     require(fake.zip_code().size() == 5 && is_digits(fake.zip_code()), "zip code");
+    require(fake.postal_code().size() == 5 && is_digits(fake.postal_code()), "postal code");
     require(fake.latitude() >= -90.0 && fake.latitude() <= 90.0, "latitude range");
     require(fake.longitude() >= -180.0 && fake.longitude() <= 180.0, "longitude range");
 
@@ -151,8 +158,15 @@ void test_category_aliases() {
     faker::Faker fake(8080);
 
     require(!fake.person().full_name().empty(), "person alias");
+    require(!fake.person().name_prefix().empty(), "person prefix alias");
+    require(!fake.person().name_suffix().empty(), "person suffix alias");
+    require(!fake.person().middle_name().empty(), "person middle alias");
     require(fake.internet().email().find('@') != std::string::npos, "internet alias");
-    require(!fake.location().city().empty(), "location alias");
+    require(!fake.location().building_number().empty(), "location building alias");
+    require(!fake.location().street_name().empty(), "location street alias");
+    require(!fake.location().secondary_address().empty(), "location secondary alias");
+    require(fake.location().postal_code().size() == 5, "location postal alias");
+    require(!fake.location().city().empty(), "location city alias");
     require(!fake.company().name().empty(), "company alias");
     require(fake.lorem().sentence().back() == '.', "lorem alias");
     require(luhn_valid(fake.finance().credit_card_number()), "finance alias");
@@ -160,6 +174,17 @@ void test_category_aliases() {
     require(fake.crypto().sha256().size() == 64, "crypto alias");
     require(!fake.system().file_name().empty(), "system alias");
     require(fake.color().hex_color()[0] == '#', "color alias");
+}
+
+void test_namespace_helpers() {
+    faker::seed(9090);
+    require(!faker::name_prefix().empty(), "namespace name_prefix");
+    require(!faker::name_suffix().empty(), "namespace name_suffix");
+    require(!faker::middle_name().empty(), "namespace middle_name");
+    require(!faker::building_number().empty(), "namespace building_number");
+    require(!faker::street_name().empty(), "namespace street_name");
+    require(!faker::secondary_address().empty(), "namespace secondary_address");
+    require(faker::postal_code().size() == 5 && is_digits(faker::postal_code()), "namespace postal_code");
 }
 
 void test_validation() {
@@ -207,6 +232,7 @@ int main() {
     test_category_smoke();
     test_expanded_categories();
     test_category_aliases();
+    test_namespace_helpers();
     test_validation();
 
     std::cout << "faker_tests passed\n";

@@ -60,6 +60,15 @@ public:
     /** Returns a first and last name. */
     std::string full_name();
 
+    /** Returns a name prefix such as Dr. or Ms. */
+    std::string name_prefix();
+
+    /** Returns a name suffix such as Jr. or III. */
+    std::string name_suffix();
+
+    /** Returns a middle name. */
+    std::string middle_name();
+
     /** Returns an internet-style username. */
     std::string username();
 
@@ -90,8 +99,17 @@ public:
     /** Returns a phone number. */
     std::string phone_number();
 
+    /** Returns a building number. */
+    std::string building_number();
+
+    /** Returns a street name. */
+    std::string street_name();
+
     /** Returns a street address. */
     std::string street_address();
+
+    /** Returns a secondary address line such as an apartment or suite. */
+    std::string secondary_address();
 
     /** Returns a city name. */
     std::string city();
@@ -104,6 +122,9 @@ public:
 
     /** Returns a postal code. */
     std::string zip_code();
+
+    /** Returns a postal code. */
+    std::string postal_code();
 
     /** Returns a latitude in degrees. */
     double latitude();
@@ -236,6 +257,9 @@ public:
     std::string first_name();
     std::string last_name();
     std::string full_name();
+    std::string name_prefix();
+    std::string name_suffix();
+    std::string middle_name();
 
 private:
     Faker* faker_;
@@ -263,11 +287,15 @@ private:
 class Faker::Location {
 public:
     explicit Location(Faker& faker);
+    std::string building_number();
+    std::string street_name();
     std::string street_address();
+    std::string secondary_address();
     std::string city();
     std::string country();
     std::string state();
     std::string zip_code();
+    std::string postal_code();
     double latitude();
     double longitude();
 
@@ -373,6 +401,9 @@ std::string uuid_v4();
 std::string first_name();
 std::string last_name();
 std::string full_name();
+std::string name_prefix();
+std::string name_suffix();
+std::string middle_name();
 std::string username();
 std::string email();
 std::string domain_name();
@@ -384,11 +415,15 @@ std::string password(int length = 16);
 std::string user_agent();
 
 std::string phone_number();
+std::string building_number();
+std::string street_name();
 std::string street_address();
+std::string secondary_address();
 std::string city();
 std::string country();
 std::string state();
 std::string zip_code();
+std::string postal_code();
 double latitude();
 double longitude();
 std::string company_name();

@@ -2,8 +2,8 @@
 
 #include <array>
 #include <charconv>
+#include <cmath>
 #include <cctype>
-#include <cstdio>
 #include <ctime>
 #include <random>
 #include <string_view>
@@ -39,6 +39,14 @@ constexpr std::array<std::string_view, 80> kLastNames = {
 
 static_assert(kFirstNames.size() == 80, "first name data must have exactly 80 entries");
 static_assert(kLastNames.size() == 80, "last name data must have exactly 80 entries");
+
+constexpr std::array<std::string_view, 8> kNamePrefixes = {
+    "Mr.", "Ms.", "Mrs.", "Mx.", "Dr.", "Prof.", "Rev.", "Capt.",
+};
+
+constexpr std::array<std::string_view, 8> kNameSuffixes = {
+    "Jr.", "Sr.", "II", "III", "IV", "PhD", "MD", "DDS",
+};
 
 constexpr std::array<std::string_view, 28> kWords = {
     "alpha", "brisk", "clear", "delta", "ember", "field", "globe", "harbor",
@@ -78,6 +86,10 @@ constexpr std::array<std::string_view, 20> kStreetNames = {
     "Main", "Oak", "Maple", "Cedar", "Pine", "Market", "River", "Lake",
     "Hill", "Park", "King", "Queen", "Station", "Garden", "Forest", "Bridge",
     "Sunset", "Highland", "Liberty", "Central",
+};
+
+constexpr std::array<std::string_view, 8> kSecondaryAddressPrefixes = {
+    "Apt", "Suite", "Unit", "Floor", "Room", "Office", "Building", "Studio",
 };
 
 constexpr std::array<std::string_view, 18> kCompanyNouns = {
@@ -139,10 +151,23 @@ constexpr std::array<std::string_view, 10> kMimeTypes = {
     "application/pdf", "image/png", "image/jpeg", "application/zip", "application/octet-stream",
 };
 
+std::uint64_t bounded_random(std::mt19937_64& rng, std::uint64_t span) {
+    const auto threshold = (std::uint64_t{0} - span) % span;
+    for (;;) {
+        const auto value = rng();
+        if (value >= threshold) {
+            return value % span;
+        }
+    }
+}
+
+std::size_t bounded_index(std::mt19937_64& rng, std::size_t size) {
+    return static_cast<std::size_t>(bounded_random(rng, static_cast<std::uint64_t>(size)));
+}
+
 template <std::size_t N>
 std::string_view pick_view(std::mt19937_64& rng, const std::array<std::string_view, N>& values) {
-    std::uniform_int_distribution<std::size_t> dist(0, values.size() - 1);
-    return values[dist(rng)];
+    return values[bounded_index(rng, values.size())];
 }
 
 template <std::size_t N>
@@ -151,11 +176,23 @@ std::string pick(std::mt19937_64& rng, const std::array<std::string_view, N>& va
 }
 
 int random_int(std::mt19937_64& rng, int min, int max) {
-    std::uniform_int_distribution<int> dist(min, max);
-    return dist(rng);
+    const auto span = static_cast<std::uint64_t>(
+        static_cast<std::int64_t>(max) - static_cast<std::int64_t>(min)) + 1U;
+    return static_cast<int>(static_cast<std::int64_t>(min) + static_cast<std::int64_t>(bounded_random(rng, span)));
+}
+
+long long random_long_long(std::mt19937_64& rng, long long min, long long max) {
+    const auto span = static_cast<std::uint64_t>(max - min) + 1U;
+    return min + static_cast<long long>(bounded_random(rng, span));
 }
 
 void append_int(std::string& out, int value) {
+    char buffer[32]{};
+    const auto result = std::to_chars(buffer, buffer + sizeof(buffer), value);
+    out.append(buffer, result.ptr);
+}
+
+void append_long_long(std::string& out, long long value) {
     char buffer[32]{};
     const auto result = std::to_chars(buffer, buffer + sizeof(buffer), value);
     out.append(buffer, result.ptr);
@@ -204,10 +241,24 @@ void append_hex_word(std::string& out, int value) {
 
 void append_hex_chars(std::string& out, std::mt19937_64& rng, std::size_t length) {
     constexpr std::string_view chars = "0123456789abcdef";
-    std::uniform_int_distribution<int> hex_dist(0, 15);
-    for (std::size_t i = 0; i < length; ++i) {
-        out += chars[static_cast<std::size_t>(hex_dist(rng))];
+    while (length > 0) {
+        auto value = rng();
+        for (int i = 0; i < 16 && length > 0; ++i, --length) {
+            out += chars[static_cast<std::size_t>(value & 0x0fU)];
+            value >>= 4U;
+        }
     }
+}
+
+unsigned int next_random_byte(std::mt19937_64& rng, std::uint64_t& value, int& remaining) {
+    if (remaining == 0) {
+        value = rng();
+        remaining = 8;
+    }
+    const auto byte = static_cast<unsigned int>(value & 0xffU);
+    value >>= 8U;
+    --remaining;
+    return byte;
 }
 
 void append_domain_name(std::string& out, std::mt19937_64& rng) {
@@ -310,9 +361,10 @@ double Faker::number_real(double min, double max) {
 
 std::string Faker::uuid_v4() {
     std::array<unsigned char, 16> bytes{};
-    std::uniform_int_distribution<int> byte_dist(0, 255);
+    std::uint64_t random_value = 0;
+    int random_bytes_remaining = 0;
     for (auto& byte : bytes) {
-        byte = static_cast<unsigned char>(byte_dist(rng_));
+        byte = static_cast<unsigned char>(next_random_byte(rng_, random_value, random_bytes_remaining));
     }
     bytes[6] = static_cast<unsigned char>((bytes[6] & 0x0fU) | 0x40U);
     bytes[8] = static_cast<unsigned char>((bytes[8] & 0x3fU) | 0x80U);
@@ -345,6 +397,18 @@ std::string Faker::full_name() {
     out += ' ';
     out += last;
     return out;
+}
+
+std::string Faker::name_prefix() {
+    return pick(rng_, kNamePrefixes);
+}
+
+std::string Faker::name_suffix() {
+    return pick(rng_, kNameSuffixes);
+}
+
+std::string Faker::middle_name() {
+    return first_name();
 }
 
 std::string Faker::username() {
@@ -392,27 +456,35 @@ std::string Faker::ipv4() {
 }
 
 std::string Faker::ipv6() {
-    std::uniform_int_distribution<int> word_dist(0, 65535);
     std::string out;
     out.reserve(39);
+    auto random_value = rng_();
+    int words_remaining = 4;
     for (int i = 0; i < 8; ++i) {
         if (i != 0) {
             out += ':';
         }
-        append_hex_word(out, word_dist(rng_));
+        if (words_remaining == 0) {
+            random_value = rng_();
+            words_remaining = 4;
+        }
+        append_hex_word(out, static_cast<int>(random_value & 0xffffU));
+        random_value >>= 16U;
+        --words_remaining;
     }
     return out;
 }
 
 std::string Faker::mac_address() {
-    std::uniform_int_distribution<int> byte_dist(0, 255);
     std::string out;
     out.reserve(17);
+    std::uint64_t random_value = 0;
+    int random_bytes_remaining = 0;
     for (int i = 0; i < 6; ++i) {
         if (i != 0) {
             out += ':';
         }
-        append_hex_byte(out, byte_dist(rng_));
+        append_hex_byte(out, static_cast<int>(next_random_byte(rng_, random_value, random_bytes_remaining)));
     }
     return out;
 }
@@ -423,11 +495,10 @@ std::string Faker::password(int length) {
     }
 
     constexpr std::string_view chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-    std::uniform_int_distribution<std::size_t> char_dist(0, chars.size() - 1);
     std::string value;
     value.reserve(static_cast<std::size_t>(length));
     for (int i = 0; i < length; ++i) {
-        value += chars[char_dist(rng_)];
+        value += chars[bounded_index(rng_, chars.size())];
     }
     return value;
 }
@@ -448,6 +519,17 @@ std::string Faker::phone_number() {
     return out;
 }
 
+std::string Faker::building_number() {
+    std::string out;
+    out.reserve(4);
+    append_int(out, random_int(rng_, 1, 9999));
+    return out;
+}
+
+std::string Faker::street_name() {
+    return pick(rng_, kStreetNames);
+}
+
 std::string Faker::street_address() {
     const auto street = pick_view(rng_, kStreetNames);
     std::string out;
@@ -456,6 +538,16 @@ std::string Faker::street_address() {
     out += ' ';
     out += street;
     out += " Street";
+    return out;
+}
+
+std::string Faker::secondary_address() {
+    const auto prefix = pick_view(rng_, kSecondaryAddressPrefixes);
+    std::string out;
+    out.reserve(prefix.size() + 5);
+    out += prefix;
+    out += ' ';
+    append_int(out, random_int(rng_, 1, 999));
     return out;
 }
 
@@ -476,6 +568,10 @@ std::string Faker::zip_code() {
     out.reserve(5);
     append_zero_padded(out, random_int(rng_, 0, 99999), 5);
     return out;
+}
+
+std::string Faker::postal_code() {
+    return zip_code();
 }
 
 double Faker::latitude() {
@@ -564,8 +660,7 @@ std::string Faker::date_between(clock::time_point from, clock::time_point to) {
 
     const auto from_seconds = std::chrono::duration_cast<std::chrono::seconds>(from.time_since_epoch()).count();
     const auto to_seconds = std::chrono::duration_cast<std::chrono::seconds>(to.time_since_epoch()).count();
-    std::uniform_int_distribution<long long> dist(from_seconds, to_seconds);
-    return format_date(clock::time_point(std::chrono::seconds(dist(rng_))));
+    return format_date(clock::time_point(std::chrono::seconds(random_long_long(rng_, from_seconds, to_seconds))));
 }
 
 std::string Faker::past_date(int days_back) {
@@ -631,9 +726,26 @@ std::string Faker::price(double min, double max) {
     if (min > max) {
         throw std::invalid_argument("faker::Faker::price min must be <= max");
     }
-    char buffer[32]{};
-    std::snprintf(buffer, sizeof(buffer), "%.2f", number_real(min, max));
-    return std::string(buffer);
+    auto min_cents = static_cast<long long>(std::ceil(min * 100.0));
+    auto max_cents = static_cast<long long>(std::floor(max * 100.0));
+    if (min_cents > max_cents) {
+        min_cents = static_cast<long long>(std::llround(min * 100.0));
+        max_cents = min_cents;
+    }
+
+    const auto cents = random_long_long(rng_, min_cents, max_cents);
+    const auto negative = cents < 0;
+    const auto magnitude = negative ? -cents : cents;
+
+    std::string out;
+    out.reserve(16);
+    if (negative) {
+        out += '-';
+    }
+    append_long_long(out, magnitude / 100);
+    out += '.';
+    append_zero_padded(out, static_cast<int>(magnitude % 100), 2);
+    return out;
 }
 
 std::string Faker::hex_string(std::size_t length) {
@@ -725,6 +837,9 @@ Faker::Person::Person(Faker& faker) : faker_(&faker) {}
 std::string Faker::Person::first_name() { return faker_->first_name(); }
 std::string Faker::Person::last_name() { return faker_->last_name(); }
 std::string Faker::Person::full_name() { return faker_->full_name(); }
+std::string Faker::Person::name_prefix() { return faker_->name_prefix(); }
+std::string Faker::Person::name_suffix() { return faker_->name_suffix(); }
+std::string Faker::Person::middle_name() { return faker_->middle_name(); }
 
 Faker::Internet::Internet(Faker& faker) : faker_(&faker) {}
 std::string Faker::Internet::username() { return faker_->username(); }
@@ -738,11 +853,15 @@ std::string Faker::Internet::password(int length) { return faker_->password(leng
 std::string Faker::Internet::user_agent() { return faker_->user_agent(); }
 
 Faker::Location::Location(Faker& faker) : faker_(&faker) {}
+std::string Faker::Location::building_number() { return faker_->building_number(); }
+std::string Faker::Location::street_name() { return faker_->street_name(); }
 std::string Faker::Location::street_address() { return faker_->street_address(); }
+std::string Faker::Location::secondary_address() { return faker_->secondary_address(); }
 std::string Faker::Location::city() { return faker_->city(); }
 std::string Faker::Location::country() { return faker_->country(); }
 std::string Faker::Location::state() { return faker_->state(); }
 std::string Faker::Location::zip_code() { return faker_->zip_code(); }
+std::string Faker::Location::postal_code() { return faker_->postal_code(); }
 double Faker::Location::latitude() { return faker_->latitude(); }
 double Faker::Location::longitude() { return faker_->longitude(); }
 
@@ -794,6 +913,9 @@ std::string uuid_v4() { return default_faker().uuid_v4(); }
 std::string first_name() { return default_faker().first_name(); }
 std::string last_name() { return default_faker().last_name(); }
 std::string full_name() { return default_faker().full_name(); }
+std::string name_prefix() { return default_faker().name_prefix(); }
+std::string name_suffix() { return default_faker().name_suffix(); }
+std::string middle_name() { return default_faker().middle_name(); }
 std::string username() { return default_faker().username(); }
 std::string email() { return default_faker().email(); }
 std::string domain_name() { return default_faker().domain_name(); }
@@ -804,11 +926,15 @@ std::string mac_address() { return default_faker().mac_address(); }
 std::string password(int length) { return default_faker().password(length); }
 std::string user_agent() { return default_faker().user_agent(); }
 std::string phone_number() { return default_faker().phone_number(); }
+std::string building_number() { return default_faker().building_number(); }
+std::string street_name() { return default_faker().street_name(); }
 std::string street_address() { return default_faker().street_address(); }
+std::string secondary_address() { return default_faker().secondary_address(); }
 std::string city() { return default_faker().city(); }
 std::string country() { return default_faker().country(); }
 std::string state() { return default_faker().state(); }
 std::string zip_code() { return default_faker().zip_code(); }
+std::string postal_code() { return default_faker().postal_code(); }
 double latitude() { return default_faker().latitude(); }
 double longitude() { return default_faker().longitude(); }
 std::string company_name() { return default_faker().company_name(); }

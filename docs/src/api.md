@@ -16,6 +16,9 @@ Person:
 fake.first_name();
 fake.last_name();
 fake.full_name();
+fake.name_prefix();
+fake.name_suffix();
+fake.middle_name();
 ```
 
 Internet:
@@ -36,11 +39,15 @@ Location and business:
 
 ```cpp
 fake.phone_number();
+fake.building_number();
+fake.street_name();
 fake.street_address();
+fake.secondary_address();
 fake.city();
 fake.country();
 fake.state();
 fake.zip_code();
+fake.postal_code();
 fake.latitude();
 fake.longitude();
 fake.company_name();
@@ -104,8 +111,9 @@ Category aliases call the same generator:
 
 ```cpp
 fake.person().full_name();
+fake.person().name_prefix();
 fake.internet().email();
-fake.location().city();
+fake.location().street_address();
 fake.company().name();
 fake.lorem().sentence();
 fake.finance().credit_card_number();
