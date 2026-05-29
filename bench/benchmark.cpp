@@ -274,6 +274,8 @@ const std::vector<SectionSpec>& sections() {
         {"street_name", [](faker::Faker& fake) { return string_size(fake.street_name()); }},
         {"street_address", [](faker::Faker& fake) { return string_size(fake.street_address()); }},
         {"secondary_address", [](faker::Faker& fake) { return string_size(fake.secondary_address()); }},
+        {"full_address", [](faker::Faker& fake) { return string_size(fake.full_address()); }},
+        {"mailing_address", [](faker::Faker& fake) { return string_size(fake.mailing_address()); }},
         {"city", [](faker::Faker& fake) { return string_size(fake.city()); }},
         {"country", [](faker::Faker& fake) { return string_size(fake.country()); }},
         {"state", [](faker::Faker& fake) { return string_size(fake.state()); }},

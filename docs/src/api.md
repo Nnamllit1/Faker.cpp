@@ -43,6 +43,8 @@ fake.building_number();
 fake.street_name();
 fake.street_address();
 fake.secondary_address();
+fake.full_address();
+fake.mailing_address();
 fake.city();
 fake.country();
 fake.state();

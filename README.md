@@ -88,7 +88,7 @@ Benchmark numbers from virtual machines and GitHub-hosted runners are useful for
 
 - person: `first_name`, `last_name`, `full_name`, `name_prefix`, `name_suffix`, `middle_name`
 - internet: `username`, `email`, `domain_name`, `url`, `ipv4`, `ipv6`, `mac_address`, `password`, `user_agent`
-- location: `building_number`, `street_name`, `street_address`, `secondary_address`, `city`, `country`, `state`, `zip_code`, `postal_code`, `latitude`, `longitude`
+- location: `building_number`, `street_name`, `street_address`, `secondary_address`, `full_address`, `mailing_address`, `city`, `country`, `state`, `zip_code`, `postal_code`, `latitude`, `longitude`
 - business: `company_name`, `job_title`
 - text: `word`, `sentence`, `paragraph`
 - finance: `credit_card_number`, `currency_code`, `iban`

@@ -111,6 +111,12 @@ public:
     /** Returns a secondary address line such as an apartment or suite. */
     std::string secondary_address();
 
+    /** Returns a one-line formatted address. */
+    std::string full_address();
+
+    /** Returns a multi-line mailing address. */
+    std::string mailing_address();
+
     /** Returns a city name. */
     std::string city();
 
@@ -291,6 +297,8 @@ public:
     std::string street_name();
     std::string street_address();
     std::string secondary_address();
+    std::string full_address();
+    std::string mailing_address();
     std::string city();
     std::string country();
     std::string state();
@@ -419,6 +427,8 @@ std::string building_number();
 std::string street_name();
 std::string street_address();
 std::string secondary_address();
+std::string full_address();
+std::string mailing_address();
 std::string city();
 std::string country();
 std::string state();

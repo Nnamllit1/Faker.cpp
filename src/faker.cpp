@@ -551,6 +551,52 @@ std::string Faker::secondary_address() {
     return out;
 }
 
+std::string Faker::full_address() {
+    const auto street = street_address();
+    const auto city_name = city();
+    const auto state_name = state();
+    const auto postal = postal_code();
+
+    std::string out;
+    out.reserve(street.size() + city_name.size() + state_name.size() + postal.size() + 6);
+    out += street;
+    out += ", ";
+    out += city_name;
+    out += ", ";
+    out += state_name;
+    out += ' ';
+    out += postal;
+    return out;
+}
+
+std::string Faker::mailing_address() {
+    const auto street = street_address();
+    const auto include_secondary = boolean(0.35);
+    const auto secondary = include_secondary ? secondary_address() : std::string();
+    const auto city_name = city();
+    const auto state_name = state();
+    const auto postal = postal_code();
+    const auto country_name = country();
+
+    std::string out;
+    out.reserve(
+        street.size() + secondary.size() + city_name.size() + state_name.size() + postal.size() + country_name.size() + 8);
+    out += street;
+    out += '\n';
+    if (include_secondary) {
+        out += secondary;
+        out += '\n';
+    }
+    out += city_name;
+    out += ", ";
+    out += state_name;
+    out += ' ';
+    out += postal;
+    out += '\n';
+    out += country_name;
+    return out;
+}
+
 std::string Faker::city() {
     return pick(rng_, kCities);
 }
@@ -857,6 +903,8 @@ std::string Faker::Location::building_number() { return faker_->building_number(
 std::string Faker::Location::street_name() { return faker_->street_name(); }
 std::string Faker::Location::street_address() { return faker_->street_address(); }
 std::string Faker::Location::secondary_address() { return faker_->secondary_address(); }
+std::string Faker::Location::full_address() { return faker_->full_address(); }
+std::string Faker::Location::mailing_address() { return faker_->mailing_address(); }
 std::string Faker::Location::city() { return faker_->city(); }
 std::string Faker::Location::country() { return faker_->country(); }
 std::string Faker::Location::state() { return faker_->state(); }
@@ -930,6 +978,8 @@ std::string building_number() { return default_faker().building_number(); }
 std::string street_name() { return default_faker().street_name(); }
 std::string street_address() { return default_faker().street_address(); }
 std::string secondary_address() { return default_faker().secondary_address(); }
+std::string full_address() { return default_faker().full_address(); }
+std::string mailing_address() { return default_faker().mailing_address(); }
 std::string city() { return default_faker().city(); }
 std::string country() { return default_faker().country(); }
 std::string state() { return default_faker().state(); }

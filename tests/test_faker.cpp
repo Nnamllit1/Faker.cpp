@@ -103,6 +103,8 @@ void test_category_smoke() {
     require(!fake.street_name().empty(), "street_name");
     require(!fake.street_address().empty(), "street_address");
     require(!fake.secondary_address().empty(), "secondary_address");
+    require(fake.full_address().find(", ") != std::string::npos, "full_address formatting");
+    require(fake.mailing_address().find('\n') != std::string::npos, "mailing_address lines");
     require(!fake.city().empty(), "city");
     require(!fake.country().empty(), "country");
     require(!fake.company_name().empty(), "company_name");
@@ -165,6 +167,8 @@ void test_category_aliases() {
     require(!fake.location().building_number().empty(), "location building alias");
     require(!fake.location().street_name().empty(), "location street alias");
     require(!fake.location().secondary_address().empty(), "location secondary alias");
+    require(fake.location().full_address().find(", ") != std::string::npos, "location full address alias");
+    require(fake.location().mailing_address().find('\n') != std::string::npos, "location mailing address alias");
     require(fake.location().postal_code().size() == 5, "location postal alias");
     require(!fake.location().city().empty(), "location city alias");
     require(!fake.company().name().empty(), "company alias");
@@ -184,6 +188,8 @@ void test_namespace_helpers() {
     require(!faker::building_number().empty(), "namespace building_number");
     require(!faker::street_name().empty(), "namespace street_name");
     require(!faker::secondary_address().empty(), "namespace secondary_address");
+    require(faker::full_address().find(", ") != std::string::npos, "namespace full_address");
+    require(faker::mailing_address().find('\n') != std::string::npos, "namespace mailing_address");
     require(faker::postal_code().size() == 5 && is_digits(faker::postal_code()), "namespace postal_code");
 }
 
