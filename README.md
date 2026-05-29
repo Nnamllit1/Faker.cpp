@@ -117,4 +117,6 @@ The hash helpers are fake random-looking strings for tests and fixtures. They ar
 
 ## License
 
-No license chosen yet.
+Faker.cpp is licensed under the Apache License 2.0.
+
+See [LICENSE](LICENSE) for the full terms. The project may choose a different license in the future, but this release uses Apache-2.0.

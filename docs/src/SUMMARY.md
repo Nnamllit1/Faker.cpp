@@ -6,3 +6,4 @@
 - [API](api.md)
 - [Performance](performance.md)
 - [Platform Support](platforms.md)
+- [License](license.md)

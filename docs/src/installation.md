@@ -31,4 +31,4 @@ find_package(FakerCpp CONFIG REQUIRED)
 target_link_libraries(my_app PRIVATE faker::faker)
 ```
 
-Release archives include the source, headers, CMake package files, README, and book source docs. The project is currently unlicensed, so check the repository status before using it in code that requires a specific license.
+Release archives include the source, headers, CMake package files, README, license, and book source docs. Check the root `LICENSE` file for the Apache-2.0 terms.

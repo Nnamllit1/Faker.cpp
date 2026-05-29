@@ -114,6 +114,8 @@ jobs:
         run: |
           cmake -E make_directory package/Faker.cpp/docs
           cmake -E copy README.md package/Faker.cpp/
+          cmake -E copy LICENSE package/Faker.cpp/
+          cmake -E copy CONTRIBUTING.md package/Faker.cpp/
           cmake -E copy_directory docs/src package/Faker.cpp/docs/src
           cmake -E copy docs/book.toml package/Faker.cpp/docs/book.toml
 

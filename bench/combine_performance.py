@@ -423,7 +423,7 @@ def write_release_body(path, report, args):
     runtime_changed = release_bool(args.runtime_changed)
 
     lines = [
-        f"Manual Faker.cpp release built from `{report['commit']}`. The planned stable release target remains `v0.1.0`; this project is still unlicensed.",
+        f"Manual Faker.cpp release built from `{report['commit']}`. Faker.cpp is licensed under the Apache License 2.0.",
         "",
         "## Release Highlights",
         "",

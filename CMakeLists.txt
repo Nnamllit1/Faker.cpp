@@ -57,6 +57,9 @@ install(TARGETS faker
 
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
+install(FILES LICENSE CONTRIBUTING.md
+    DESTINATION ${CMAKE_INSTALL_DOCDIR})
+
 install(EXPORT FakerCppTargets
     NAMESPACE faker::
     FILE FakerCppTargets.cmake
