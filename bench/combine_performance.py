@@ -276,7 +276,7 @@ def aggregate_time_note(report):
     return f"{prefix}: {', '.join(parts)}."
 
 
-def top_improvement_note(report):
+def top_measured_improvement_note(report):
     entries = []
     for system in report["systems"]:
         for section in improved_sections(system, 5):
@@ -289,7 +289,7 @@ def top_improvement_note(report):
         f"`{section['name']}` on {os_name} ({section['comparison']})"
         for _, os_name, section in entries[:5]
     ]
-    return f"The biggest wins are {', '.join(formatted)}."
+    return f"The largest measured improvements are {', '.join(formatted)}."
 
 
 def comparison_summary_lines(report):
@@ -351,7 +351,7 @@ def write_markdown(path, report):
 def write_release_body(path, report):
     workload_notes = workload_change_notes(report)
     time_note = aggregate_time_note(report)
-    improvement_note = top_improvement_note(report)
+    improvement_note = top_measured_improvement_note(report)
 
     lines = [
         f"Manual Faker.cpp release built from `{report['commit']}`. The planned stable release target remains `v0.1.0`; this project is still unlicensed.",
@@ -372,6 +372,8 @@ def write_release_body(path, report):
         f"`{report['calls_per_row']}` generated values per row. The tables use `{report['metric']}` results.",
         "",
         f"Small per-generator movements below {VARIANCE_THRESHOLD_PERCENT:.0f}% are treated as runtime variance.",
+        "",
+        "Performance tables show fresh-runner measurements for this release. Treat them as regression signals only when the related generator/runtime code changed.",
         "",
     ]
 
