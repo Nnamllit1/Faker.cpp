@@ -160,11 +160,45 @@ def write_json(path, report):
         file.write("\n")
 
 
+def release_bool(value, default=True):
+    if value is None:
+        return default
+    normalized = str(value).strip().lower()
+    if normalized in ("1", "true", "yes", "y", "on"):
+        return True
+    if normalized in ("0", "false", "no", "n", "off"):
+        return False
+    return default
+
+
+def runner_context_comparison(delta):
+    if delta == 0:
+        return "runner context (no measured change)"
+    return f"runner context ({direction_text(delta)} measured)"
+
+
+def mark_runner_context(report):
+    comparable_statuses = {"improved", "slower", "within_variance"}
+    for system in report["systems"]:
+        if system.get("comparison_status") in comparable_statuses:
+            system["comparison_status"] = "runner_context"
+            system["comparison"] = runner_context_comparison(
+                system.get("rows_per_second_delta_percent", 0.0)
+            )
+        for section in system.get("sections", []):
+            if section.get("comparison_status") in comparable_statuses:
+                section["comparison_status"] = "runner_context"
+                section["comparison"] = runner_context_comparison(
+                    section.get("rows_per_second_delta_percent", 0.0)
+                )
+
+
 def status_marker(status):
     markers = {
         "improved": "🟢",
         "slower": "🔴",
         "within_variance": "⚪",
+        "runner_context": "🟣",
         "new_result": "🔵",
         "workload_changed": "🟡",
         "no_previous_metric": "⚫",
@@ -178,7 +212,7 @@ def comparison_cell(item):
 
 def status_legend_lines():
     return [
-        "Legend: 🟢 measured faster, 🔴 possible regression, ⚪ within runtime variance, 🔵 new result, 🟡 workload changed, ⚫ no previous metric.",
+        "Legend: 🟢 measured faster, 🔴 possible regression, ⚪ within runtime variance, 🟣 runner context, 🔵 new result, 🟡 workload changed, ⚫ no previous metric.",
     ]
 
 
@@ -333,20 +367,10 @@ def comparison_summary_lines(report):
             f"- `{system['os']}`: 🟢 {counts.get('improved', 0)} improved, "
             f"🔴 {counts.get('slower', 0)} possible regressions, "
             f"⚪ {counts.get('within_variance', 0)} within runtime variance, "
+            f"🟣 {counts.get('runner_context', 0)} runner context, "
             f"🔵 {counts.get('new_result', 0)} new results."
         )
     return lines
-
-
-def release_bool(value, default=True):
-    if value is None:
-        return default
-    normalized = str(value).strip().lower()
-    if normalized in ("1", "true", "yes", "y", "on"):
-        return True
-    if normalized in ("0", "false", "no", "n", "off"):
-        return False
-    return default
 
 
 def split_manual_items(value):
@@ -443,8 +467,8 @@ def write_markdown(path, report):
 def write_release_body(path, report, args):
     workload_notes = workload_change_notes(report)
     time_note = aggregate_time_note(report)
-    improvement_note = top_measured_improvement_note(report)
     runtime_changed = release_bool(args.runtime_changed)
+    improvement_note = top_measured_improvement_note(report) if runtime_changed else None
 
     lines = [
         f"Manual Faker.cpp release built from `{report['commit']}`. Faker.cpp is licensed under the Apache License 2.0.",
@@ -541,6 +565,8 @@ def main():
     args = parser.parse_args()
 
     report = combine_metrics(args)
+    if not release_bool(args.runtime_changed):
+        mark_runner_context(report)
     write_json(args.output_json, report)
     write_markdown(args.output_md, report)
     write_release_body(args.release_body, report, args)
