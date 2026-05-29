@@ -24,6 +24,16 @@ def percent_change(current, previous):
     return ((current - previous) / previous) * 100.0
 
 
+def median(values):
+    if not values:
+        raise ValueError("cannot calculate median of empty values")
+    sorted_values = sorted(values)
+    middle = len(sorted_values) // 2
+    if len(sorted_values) % 2 == 0:
+        return (sorted_values[middle - 1] + sorted_values[middle]) / 2
+    return sorted_values[middle]
+
+
 def direction_text(delta):
     if delta > 0:
         return f"{delta:.2f}% faster"
@@ -140,14 +150,94 @@ def load_previous(path):
     return {item.get("os"): item for item in data.get("systems", [])}
 
 
+def metric_run_seconds(metric):
+    values = metric.get("run_seconds") or []
+    return sorted(values) if values else [metric["seconds"]]
+
+
+def merge_measurements(measurements):
+    values = []
+    for measurement in measurements:
+        values.extend(metric_run_seconds(measurement))
+
+    rows = measurements[0]["rows"]
+    calls_per_row = measurements[0]["calls_per_row"]
+    total_calls = measurements[0]["total_calls"]
+    merged_seconds = median(values)
+
+    merged = dict(measurements[0])
+    merged["runs_per_instance"] = measurements[0].get("runs", len(metric_run_seconds(measurements[0])))
+    merged["runner_instances"] = len(measurements)
+    merged["runs"] = sum(measurement.get("runs", len(metric_run_seconds(measurement))) for measurement in measurements)
+    merged["seconds"] = merged_seconds
+    merged["median_seconds"] = merged_seconds
+    merged["best_seconds"] = min(values)
+    merged["worst_seconds"] = max(values)
+    merged["average_seconds"] = sum(values) / len(values)
+    merged["rows_per_second"] = rows / merged_seconds
+    merged["calls_per_second"] = total_calls / merged_seconds
+    merged["checksum"] = sum(measurement.get("checksum", 0) for measurement in measurements)
+    merged["run_seconds"] = sorted(values)
+    merged["total_calls_all_runs"] = total_calls * merged["runs"]
+    merged["metric"] = "median"
+    merged["rows"] = rows
+    merged["calls_per_row"] = calls_per_row
+    merged["total_calls"] = total_calls
+    return merged
+
+
+def ensure_same_workload(measurements, context):
+    first = measurements[0]
+    keys = ("os", "rows", "calls_per_row", "total_calls")
+    for measurement in measurements[1:]:
+        for key in keys:
+            if measurement.get(key) != first.get(key):
+                raise RuntimeError(f"{context} metrics do not share {key}")
+
+
+def merge_system_metrics(measurements):
+    ensure_same_workload(measurements, measurements[0].get("os", "system"))
+
+    sections_by_name = {}
+    for measurement in measurements:
+        for section in measurement.get("sections", []):
+            sections_by_name.setdefault(section.get("name"), []).append(section)
+
+    first_section_names = [section.get("name") for section in measurements[0].get("sections", [])]
+    for measurement in measurements[1:]:
+        section_names = [section.get("name") for section in measurement.get("sections", [])]
+        if section_names != first_section_names:
+            raise RuntimeError(f"{measurements[0].get('os', 'system')} metrics do not share section order")
+
+    sections = [merge_measurements(sections_by_name[name]) for name in first_section_names]
+    merged = merge_measurements(measurements)
+    merged["sections"] = sections
+    merged["sections_per_row"] = measurements[0].get("sections_per_row", len(sections))
+    merged["seconds"] = sum(section["seconds"] for section in sections)
+    merged["median_seconds"] = merged["seconds"]
+    merged["best_seconds"] = sum(section["best_seconds"] for section in sections)
+    merged["worst_seconds"] = sum(section["worst_seconds"] for section in sections)
+    merged["average_seconds"] = sum(section["average_seconds"] for section in sections)
+    merged["rows_per_second"] = merged["rows"] / merged["seconds"]
+    merged["calls_per_second"] = merged["total_calls"] / merged["seconds"]
+    merged["total_calls_all_runs"] = merged["total_calls"] * merged["runs"]
+    if len(merged.get("run_seconds", [])) != merged["runs"]:
+        merged["runner_median_seconds"] = merged.pop("run_seconds", [])
+    return merged
+
+
 def combine_metrics(args):
     previous_by_os = load_previous(args.previous)
-    systems = []
+    current_by_os = {}
 
     for metric_path in sorted(Path(path) for path in args.metrics):
         with metric_path.open("r", encoding="utf-8") as file:
             current = json.load(file)
+        current_by_os.setdefault(current.get("os"), []).append(current)
 
+    systems = []
+    for os_name in sorted(current_by_os):
+        current = merge_system_metrics(current_by_os[os_name])
         previous = previous_by_os.get(current.get("os"))
         apply_comparison(current, previous, "no previous metric", "no_previous_metric")
         if previous and not same_result_set(current, previous):
@@ -169,6 +259,8 @@ def combine_metrics(args):
         "commit": args.commit,
         "rows": systems[0]["rows"],
         "runs": systems[0].get("runs", 1),
+        "runs_per_instance": systems[0].get("runs_per_instance", systems[0].get("runs", 1)),
+        "runner_instances": systems[0].get("runner_instances", 1),
         "metric": systems[0].get("metric", "single"),
         "calls_per_row": systems[0]["calls_per_row"],
         "sections_per_row": systems[0].get("sections_per_row", len(systems[0].get("sections", []))),
@@ -443,7 +535,9 @@ def write_markdown(path, report):
         f"- Version: `{report['version']}`",
         f"- Commit: `{report['commit']}`",
         f"- Rows per system: `{report['rows']}`",
-        f"- Runs per system: `{report['runs']}`",
+        f"- Runner instances per system: `{report['runner_instances']}`",
+        f"- Runs per runner instance: `{report['runs_per_instance']}`",
+        f"- Total runs per system: `{report['runs']}`",
         f"- Comparison metric: `{report['metric']}`",
         f"- Generated results per row: `{report['calls_per_row']}`",
         f"- Total calls per run: `{report['total_calls_per_system']}`",
@@ -496,8 +590,10 @@ def write_release_body(path, report, args):
         "",
         "## Performance Summary",
         "",
-        f"Benchmark workload: `{report['runs']}` runs per OS, `{report['rows']}` rows per run, "
-        f"`{report['calls_per_row']}` generated values per row. The tables use `{report['metric']}` results.",
+        f"Benchmark workload: `{report['runner_instances']}` fresh runner instances per OS, "
+        f"`{report['runs_per_instance']}` runs per runner, `{report['rows']}` rows per run, "
+        f"`{report['calls_per_row']}` generated values per row. The tables use `{report['metric']}` results "
+        f"across `{report['runs']}` total runs per OS.",
         "",
         f"Small per-generator movements below {VARIANCE_THRESHOLD_PERCENT:.0f}% are treated as runtime variance.",
         "",

@@ -75,10 +75,10 @@ cmake --build build
 Run the full "everything" benchmark:
 
 ```sh
-./build/faker_benchmark --rows 1000000 --runs 10
+./build/faker_benchmark --rows 1000000 --runs 2
 ```
 
-The benchmark generates every flat public Faker API once per row, reports one named result section per API, writes `performance.json` and `performance.md`, and prints throughput to stdout. Release builds run performance in separate fresh Linux and Windows runner jobs, use 10 runs of 1,000,000 rows, compare matching named result sections against the previous release, and attach one combined `performance.json` plus one combined `performance.md`. Aggregate rows are included for context and marked as a changed workload when the generated-result count changes.
+The benchmark generates every flat public Faker API once per row, reports one named result section per API, writes `performance.json` and `performance.md`, and prints throughput to stdout. Release builds run performance in five separate fresh Linux runner jobs and five separate fresh Windows runner jobs. Each runner uses 2 runs of 1,000,000 rows, and the release report combines those runner instances into one median per OS before comparing matching named result sections against the previous release. Aggregate rows are included for context and marked as a changed workload when the generated-result count changes.
 
 Benchmark numbers from virtual machines and GitHub-hosted runners are useful for comparing one release to another under similar conditions. Small deltas under 5% are treated as normal runner/runtime variation, not measured slowdowns. Aggregate rows are marked as `workload changed` when new generators change the generated-result count, so per-generator rows are the best place to inspect existing generator performance.
 

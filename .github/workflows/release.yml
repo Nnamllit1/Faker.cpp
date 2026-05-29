@@ -129,21 +129,20 @@ jobs:
         run: gh release upload "${{ github.event.inputs.version }}" "${{ matrix.asset }}" --clobber
 
   performance:
-    name: Performance ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
+    name: Performance ${{ matrix.platform.name }} runner ${{ matrix.runner_index }}
+    runs-on: ${{ matrix.platform.os }}
     needs: prepare
     strategy:
       fail-fast: false
       matrix:
-        include:
+        runner_index: [1, 2, 3, 4, 5]
+        platform:
           - name: linux
             os: ubuntu-latest
             benchmark: build/faker_benchmark
-            perf_tmp: tmp-performance-linux-x64.json
           - name: windows
             os: windows-latest
             benchmark: build/Release/faker_benchmark.exe
-            perf_tmp: tmp-performance-windows-x64.json
 
     steps:
       - name: Checkout
@@ -158,20 +157,20 @@ jobs:
       - name: Run performance benchmark
         shell: bash
         run: |
-          "${{ matrix.benchmark }}" \
+          "${{ matrix.platform.benchmark }}" \
             --rows 1000000 \
-            --runs 10 \
+            --runs 2 \
             --version "${{ github.event.inputs.version }}" \
             --commit "${{ github.sha }}" \
-            --os "${{ matrix.name }}-x64" \
-            --output-json "${{ matrix.perf_tmp }}" \
+            --os "${{ matrix.platform.name }}-x64" \
+            --output-json "tmp-performance-${{ matrix.platform.name }}-x64-run-${{ matrix.runner_index }}.json" \
             --output-md performance-local.md
 
       - name: Upload release asset
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release upload "${{ github.event.inputs.version }}" "${{ matrix.perf_tmp }}" --clobber
+        run: gh release upload "${{ github.event.inputs.version }}" "tmp-performance-${{ matrix.platform.name }}-x64-run-${{ matrix.runner_index }}.json" --clobber
 
   publish:
     name: Publish release
