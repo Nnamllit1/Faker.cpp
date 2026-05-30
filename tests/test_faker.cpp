@@ -34,6 +34,16 @@ bool is_digits(const std::string& value) {
     return true;
 }
 
+bool is_known_animal_type(const std::string& value) {
+    const std::vector<std::string> types = {"mammal", "bird", "reptile", "fish", "insect", "pet"};
+    for (const auto& type : types) {
+        if (value == type) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool luhn_valid(const std::string& digits) {
     int sum = 0;
     bool double_digit = false;
@@ -154,6 +164,15 @@ void test_expanded_categories() {
     require(fake.semver().find('.') != std::string::npos, "semver");
     require(fake.hex_color().size() == 7 && fake.hex_color()[0] == '#', "hex color");
     require(fake.rgb_color().find("rgb(") == 0, "rgb color");
+    require(!fake.animal().empty(), "animal");
+    require(is_known_animal_type(fake.animal_type()), "animal type");
+    require(!fake.mammal().empty(), "mammal");
+    require(!fake.bird().empty(), "bird");
+    require(!fake.reptile().empty(), "reptile");
+    require(!fake.fish().empty(), "fish");
+    require(!fake.insect().empty(), "insect");
+    require(!fake.dog().empty(), "dog");
+    require(!fake.cat().empty(), "cat");
 }
 
 void test_category_aliases() {
@@ -178,6 +197,15 @@ void test_category_aliases() {
     require(fake.crypto().sha256().size() == 64, "crypto alias");
     require(!fake.system().file_name().empty(), "system alias");
     require(fake.color().hex_color()[0] == '#', "color alias");
+    require(!fake.animals().animal().empty(), "animals alias");
+    require(is_known_animal_type(fake.animals().animal_type()), "animals type alias");
+    require(!fake.animals().mammal().empty(), "animals mammal alias");
+    require(!fake.animals().bird().empty(), "animals bird alias");
+    require(!fake.animals().reptile().empty(), "animals reptile alias");
+    require(!fake.animals().fish().empty(), "animals fish alias");
+    require(!fake.animals().insect().empty(), "animals insect alias");
+    require(!fake.animals().dog().empty(), "animals dog alias");
+    require(!fake.animals().cat().empty(), "animals cat alias");
 }
 
 void test_namespace_helpers() {
@@ -191,6 +219,15 @@ void test_namespace_helpers() {
     require(faker::full_address().find(", ") != std::string::npos, "namespace full_address");
     require(faker::mailing_address().find('\n') != std::string::npos, "namespace mailing_address");
     require(faker::postal_code().size() == 5 && is_digits(faker::postal_code()), "namespace postal_code");
+    require(!faker::animal().empty(), "namespace animal");
+    require(is_known_animal_type(faker::animal_type()), "namespace animal_type");
+    require(!faker::mammal().empty(), "namespace mammal");
+    require(!faker::bird().empty(), "namespace bird");
+    require(!faker::reptile().empty(), "namespace reptile");
+    require(!faker::fish().empty(), "namespace fish");
+    require(!faker::insect().empty(), "namespace insect");
+    require(!faker::dog().empty(), "namespace dog");
+    require(!faker::cat().empty(), "namespace cat");
 }
 
 void test_validation() {

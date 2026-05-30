@@ -15,7 +15,7 @@ Run the standard benchmark:
 ./build/faker_benchmark --rows 1000000 --runs 2
 ```
 
-The standard benchmark generates every flat public Faker API once per row. For the current API this is 55 generated values per row, reported as one named result section per API.
+The standard benchmark generates every flat public Faker API once per row. For the current API this is 66 generated values per row, reported as one named result section per API.
 
 The tool writes:
 

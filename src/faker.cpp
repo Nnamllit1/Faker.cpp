@@ -151,6 +151,47 @@ constexpr std::array<std::string_view, 10> kMimeTypes = {
     "application/pdf", "image/png", "image/jpeg", "application/zip", "application/octet-stream",
 };
 
+constexpr std::array<std::string_view, 6> kAnimalTypes = {
+    "mammal", "bird", "reptile", "fish", "insect", "pet",
+};
+
+constexpr std::array<std::string_view, 20> kMammals = {
+    "Elephant", "Tiger", "Lion", "Wolf", "Bear", "Fox", "Giraffe", "Zebra", "Kangaroo", "Koala",
+    "Otter", "Dolphin", "Whale", "Gorilla", "Panda", "Moose", "Raccoon", "Hedgehog", "Bat", "Bison",
+};
+
+constexpr std::array<std::string_view, 18> kBirds = {
+    "Eagle", "Falcon", "Owl", "Sparrow", "Robin", "Raven", "Penguin", "Flamingo", "Parrot",
+    "Swan", "Heron", "Peacock", "Toucan", "Pelican", "Hawk", "Stork", "Finch", "Woodpecker",
+};
+
+constexpr std::array<std::string_view, 16> kReptiles = {
+    "Iguana", "Gecko", "Chameleon", "Cobra", "Python", "Boa", "Tortoise", "Turtle",
+    "Crocodile", "Alligator", "Skink", "Monitor Lizard", "Anole", "Viper", "Gila Monster", "Komodo Dragon",
+};
+
+constexpr std::array<std::string_view, 16> kFish = {
+    "Salmon", "Trout", "Tuna", "Cod", "Herring", "Mackerel", "Clownfish", "Angelfish",
+    "Goldfish", "Guppy", "Catfish", "Swordfish", "Seahorse", "Barracuda", "Carp", "Pike",
+};
+
+constexpr std::array<std::string_view, 16> kInsects = {
+    "Butterfly", "Bee", "Ant", "Dragonfly", "Ladybug", "Beetle", "Cricket", "Grasshopper",
+    "Moth", "Wasp", "Cicada", "Firefly", "Damselfly", "Termite", "Mayfly", "Praying Mantis",
+};
+
+constexpr std::array<std::string_view, 16> kDogs = {
+    "Labrador Retriever", "Golden Retriever", "German Shepherd", "Beagle", "Bulldog", "Poodle",
+    "Border Collie", "Dachshund", "Boxer", "Shiba Inu", "Corgi", "Husky", "Rottweiler",
+    "Australian Shepherd", "Great Dane", "Chihuahua",
+};
+
+constexpr std::array<std::string_view, 16> kCats = {
+    "Siamese", "Maine Coon", "Persian", "Ragdoll", "Bengal", "Sphynx", "British Shorthair",
+    "Abyssinian", "Scottish Fold", "Russian Blue", "Norwegian Forest Cat", "Birman",
+    "Savannah", "Chartreux", "American Shorthair", "Devon Rex",
+};
+
 std::uint64_t bounded_random(std::mt19937_64& rng, std::uint64_t span) {
     const auto threshold = (std::uint64_t{0} - span) % span;
     for (;;) {
@@ -868,6 +909,50 @@ std::string Faker::rgb_color() {
     return out;
 }
 
+std::string Faker::animal() {
+    switch (random_int(rng_, 0, 6)) {
+    case 0: return mammal();
+    case 1: return bird();
+    case 2: return reptile();
+    case 3: return fish();
+    case 4: return insect();
+    case 5: return dog();
+    default: return cat();
+    }
+}
+
+std::string Faker::animal_type() {
+    return pick(rng_, kAnimalTypes);
+}
+
+std::string Faker::mammal() {
+    return pick(rng_, kMammals);
+}
+
+std::string Faker::bird() {
+    return pick(rng_, kBirds);
+}
+
+std::string Faker::reptile() {
+    return pick(rng_, kReptiles);
+}
+
+std::string Faker::fish() {
+    return pick(rng_, kFish);
+}
+
+std::string Faker::insect() {
+    return pick(rng_, kInsects);
+}
+
+std::string Faker::dog() {
+    return pick(rng_, kDogs);
+}
+
+std::string Faker::cat() {
+    return pick(rng_, kCats);
+}
+
 Faker::Person Faker::person() { return Person(*this); }
 Faker::Internet Faker::internet() { return Internet(*this); }
 Faker::Location Faker::location() { return Location(*this); }
@@ -878,6 +963,7 @@ Faker::Commerce Faker::commerce() { return Commerce(*this); }
 Faker::Crypto Faker::crypto() { return Crypto(*this); }
 Faker::System Faker::system() { return System(*this); }
 Faker::Color Faker::color() { return Color(*this); }
+Faker::Animals Faker::animals() { return Animals(*this); }
 
 Faker::Person::Person(Faker& faker) : faker_(&faker) {}
 std::string Faker::Person::first_name() { return faker_->first_name(); }
@@ -948,6 +1034,17 @@ Faker::Color::Color(Faker& faker) : faker_(&faker) {}
 std::string Faker::Color::hex_color() { return faker_->hex_color(); }
 std::string Faker::Color::rgb_color() { return faker_->rgb_color(); }
 
+Faker::Animals::Animals(Faker& faker) : faker_(&faker) {}
+std::string Faker::Animals::animal() { return faker_->animal(); }
+std::string Faker::Animals::animal_type() { return faker_->animal_type(); }
+std::string Faker::Animals::mammal() { return faker_->mammal(); }
+std::string Faker::Animals::bird() { return faker_->bird(); }
+std::string Faker::Animals::reptile() { return faker_->reptile(); }
+std::string Faker::Animals::fish() { return faker_->fish(); }
+std::string Faker::Animals::insect() { return faker_->insect(); }
+std::string Faker::Animals::dog() { return faker_->dog(); }
+std::string Faker::Animals::cat() { return faker_->cat(); }
+
 Faker& default_faker() {
     thread_local Faker instance;
     return instance;
@@ -1012,5 +1109,14 @@ std::string mime_type() { return default_faker().mime_type(); }
 std::string semver() { return default_faker().semver(); }
 std::string hex_color() { return default_faker().hex_color(); }
 std::string rgb_color() { return default_faker().rgb_color(); }
+std::string animal() { return default_faker().animal(); }
+std::string animal_type() { return default_faker().animal_type(); }
+std::string mammal() { return default_faker().mammal(); }
+std::string bird() { return default_faker().bird(); }
+std::string reptile() { return default_faker().reptile(); }
+std::string fish() { return default_faker().fish(); }
+std::string insect() { return default_faker().insect(); }
+std::string dog() { return default_faker().dog(); }
+std::string cat() { return default_faker().cat(); }
 
 } // namespace faker

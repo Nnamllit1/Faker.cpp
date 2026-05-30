@@ -29,6 +29,7 @@ public:
     class Crypto;
     class System;
     class Color;
+    class Animals;
 
     /** Creates a generator seeded from std::random_device. */
     Faker();
@@ -213,6 +214,33 @@ public:
     /** Returns a CSS-style rgb(r, g, b) color. */
     std::string rgb_color();
 
+    /** Returns a random animal name. */
+    std::string animal();
+
+    /** Returns an animal category such as mammal, bird, reptile, fish, insect, or pet. */
+    std::string animal_type();
+
+    /** Returns a mammal name. */
+    std::string mammal();
+
+    /** Returns a bird name. */
+    std::string bird();
+
+    /** Returns a reptile name. */
+    std::string reptile();
+
+    /** Returns a fish name. */
+    std::string fish();
+
+    /** Returns an insect name. */
+    std::string insect();
+
+    /** Returns a dog breed name. */
+    std::string dog();
+
+    /** Returns a cat breed name. */
+    std::string cat();
+
     /** Returns a random element from a non-empty indexable container. */
     template <typename Container>
     const typename Container::value_type& choice(const Container& values) {
@@ -251,6 +279,9 @@ public:
 
     /** Color category alias. */
     Color color();
+
+    /** Animals category alias. */
+    Animals animals();
 
 private:
     std::mt19937_64 rng_;
@@ -395,6 +426,24 @@ private:
     Faker* faker_;
 };
 
+/** Animals category proxy. */
+class Faker::Animals {
+public:
+    explicit Animals(Faker& faker);
+    std::string animal();
+    std::string animal_type();
+    std::string mammal();
+    std::string bird();
+    std::string reptile();
+    std::string fish();
+    std::string insect();
+    std::string dog();
+    std::string cat();
+
+private:
+    Faker* faker_;
+};
+
 /** Returns this thread's default generator. */
 Faker& default_faker();
 
@@ -464,6 +513,15 @@ std::string mime_type();
 std::string semver();
 std::string hex_color();
 std::string rgb_color();
+std::string animal();
+std::string animal_type();
+std::string mammal();
+std::string bird();
+std::string reptile();
+std::string fish();
+std::string insect();
+std::string dog();
+std::string cat();
 
 } // namespace faker
 

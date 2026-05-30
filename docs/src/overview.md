@@ -11,6 +11,7 @@ The current release focuses on common data:
 - names and usernames
 - email, domains, URLs, IPv4, IPv6, and MAC addresses
 - phone numbers and addresses
+- animals, pets, and broad animal taxonomy labels
 - companies and job titles
 - lorem-like words, sentences, and paragraphs
 - dates, numbers, booleans, UUIDs, and selection helpers

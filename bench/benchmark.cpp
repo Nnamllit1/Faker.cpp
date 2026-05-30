@@ -307,6 +307,15 @@ const std::vector<SectionSpec>& sections() {
         {"semver", [](faker::Faker& fake) { return string_size(fake.semver()); }},
         {"hex_color", [](faker::Faker& fake) { return string_size(fake.hex_color()); }},
         {"rgb_color", [](faker::Faker& fake) { return string_size(fake.rgb_color()); }},
+        {"animal", [](faker::Faker& fake) { return string_size(fake.animal()); }},
+        {"animal_type", [](faker::Faker& fake) { return string_size(fake.animal_type()); }},
+        {"mammal", [](faker::Faker& fake) { return string_size(fake.mammal()); }},
+        {"bird", [](faker::Faker& fake) { return string_size(fake.bird()); }},
+        {"reptile", [](faker::Faker& fake) { return string_size(fake.reptile()); }},
+        {"fish", [](faker::Faker& fake) { return string_size(fake.fish()); }},
+        {"insect", [](faker::Faker& fake) { return string_size(fake.insect()); }},
+        {"dog", [](faker::Faker& fake) { return string_size(fake.dog()); }},
+        {"cat", [](faker::Faker& fake) { return string_size(fake.cat()); }},
     };
     return specs;
 }

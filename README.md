@@ -14,8 +14,9 @@ int main() {
 
     std::cout << fake.full_name() << '\n';
     std::cout << fake.email() << '\n';
+    std::cout << fake.full_address() << '\n';
+    std::cout << fake.animals().animal() << '\n';
     std::cout << fake.uuid_v4() << '\n';
-    std::cout << fake.crypto().sha256() << '\n';
 }
 ```
 
@@ -96,6 +97,7 @@ Benchmark numbers from virtual machines and GitHub-hosted runners are useful for
 - crypto-shaped test data: `hex_string`, `md5`, `sha1`, `sha256`
 - system/dev: `file_name`, `file_path`, `mime_type`, `semver`
 - colors: `hex_color`, `rgb_color`
+- animals: `animal`, `animal_type`, `mammal`, `bird`, `reptile`, `fish`, `insect`, `dog`, `cat`
 - primitives: `boolean`, `number_int`, `number_real`, `uuid_v4`
 - dates: `past_date`, `future_date`, `recent_date`, `date_between`
 - helpers: `choice`
@@ -111,6 +113,7 @@ auto name = fake.person().full_name();
 auto email = fake.internet().email();
 auto hash = fake.crypto().sha256();
 auto price = fake.commerce().price();
+auto pet = fake.animals().dog();
 ```
 
 The hash helpers are fake random-looking strings for tests and fixtures. They are not cryptographic primitives.

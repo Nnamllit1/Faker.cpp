@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(FakerCpp
-    VERSION 0.1.1
+    VERSION 0.1.3
     DESCRIPTION "A small C++ fake data generation library"
     LANGUAGES CXX)
 
